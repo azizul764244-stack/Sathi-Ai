@@ -25,9 +25,9 @@ import type {
   SubscriptionState,
   UserAccountStatus,
   UserProfile,
-} from '../src/types';
-import { normalizeLanguageCode } from '../src/constants/languages';
-import { getAdminConfigStatus } from './adminAuth';
+} from '../src/types.js';
+import { normalizeLanguageCode } from '../src/constants/languages.js';
+import { getAdminConfigStatus } from './adminAuth.js';
 
 export const AVAILABLE_GEMINI_MODELS: GeminiModelOption[] = [
   {

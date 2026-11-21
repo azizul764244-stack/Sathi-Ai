@@ -5,13 +5,13 @@ import type {
   ResponseLanguageCode,
   SocialContentResult,
   VideoPromptResult,
-} from '../src/types';
-import { getLanguageOption, normalizeLanguageCode } from '../src/constants/languages';
+} from '../src/types.js';
+import { getLanguageOption, normalizeLanguageCode } from '../src/constants/languages.js';
 import {
   AVAILABLE_GEMINI_MODELS,
   getActiveAiModel,
   getAppSettings,
-} from './store';
+} from './store.js';
 
 export class GeminiServiceError extends Error {
   status: number;

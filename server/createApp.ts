@@ -11,7 +11,7 @@ import {
   resetLoginRateLimit,
   verifyAdminCredentials,
   type AuthenticatedAdminRequest,
-} from './adminAuth';
+} from './adminAuth.js';
 import {
   addHistoryItem,
   adminCreateUser,
@@ -48,7 +48,7 @@ import {
   updateProfile,
   updateQuotaLimits,
   verifyPaymentAndActivate,
-} from './store';
+} from './store.js';
 import {
   advisePhotoThumbnail,
   clearResponseCache,
@@ -65,9 +65,9 @@ import {
   synthesizeSpeechAudio,
   transcribeVoiceAudio,
   verifyGeminiConnection,
-} from './gemini';
-import { normalizeLanguageCode } from '../src/constants/languages';
-import type { PaymentMethod, ResponseLanguageCode, SubscriptionPlanId } from '../src/types';
+} from './gemini.js';
+import { normalizeLanguageCode } from '../src/constants/languages.js';
+import type { PaymentMethod, ResponseLanguageCode, SubscriptionPlanId } from '../src/types.js';
 
 dotenv.config();
 
@@ -1607,3 +1607,13 @@ app.post('/api/ai/tts', async (req, res) => {
 
   return app;
 }
+
+let cachedDefaultApp: express.Express | null = null;
+
+export default function handler(req: express.Request, res: express.Response): void {
+  if (!cachedDefaultApp) {
+    cachedDefaultApp = createApiApp();
+  }
+  cachedDefaultApp(req, res);
+}
+

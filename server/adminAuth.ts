@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import type express from 'express';
-import type { AdminSessionInfo } from '../src/types';
+import type { AdminSessionInfo } from '../src/types.js';
 
 export const ADMIN_COOKIE_NAME = 'sathi_admin_session';
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours

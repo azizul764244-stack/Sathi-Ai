@@ -1,4 +1,4 @@
-import type { LanguageOption, ResponseLanguageCode } from '../types';
+import type { LanguageOption, ResponseLanguageCode } from '../types.js';
 
 export const SUPPORTED_LANGUAGES: LanguageOption[] = [
   {
