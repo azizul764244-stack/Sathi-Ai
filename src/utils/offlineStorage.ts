@@ -94,7 +94,7 @@ export function createFallbackOfflineState(): AppStateResponse {
       interstitial: {
         enabled: true,
         maxPerSession: 2,
-        title: 'Sathi AI Pro',
+        title: 'Sathi AI BD Pro',
         description: 'Unlock 200+ daily AI requests and an ad-free experience.',
         ctaText: 'Go Pro',
         targetPage: 'subscription',

@@ -307,7 +307,7 @@ const createDefaultDb = (): PersistedDatabase => {
     conversations: [
       {
         id: 'CONV-WELCOME',
-        title: 'বহুভাষিক সাথী AI পরিচিতি',
+        title: 'বহুভাষিক Sathi AI BD পরিচিতি',
         language: 'bn',
         pinned: false,
         createdAt: new Date(Date.now() - 1000 * 60 * 90).toISOString(),

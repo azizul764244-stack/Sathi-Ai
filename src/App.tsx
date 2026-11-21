@@ -264,7 +264,7 @@ function AppInner({
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-200 gap-3">
         <Loader2 className="w-7 h-7 animate-spin text-blue-700 dark:text-blue-400" />
-        <p className="text-sm font-medium">{t('Loading Sathi AI...', 'সাথী AI লোড হচ্ছে...')}</p>
+        <p className="text-sm font-medium">{t('Loading Sathi AI BD...', 'Sathi AI BD লোড হচ্ছে...')}</p>
       </div>
     );
   }

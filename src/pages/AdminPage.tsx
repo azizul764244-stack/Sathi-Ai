@@ -203,7 +203,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
           className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 dark:text-blue-400 hover:underline min-h-[38px]"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span>সাথী AI অ্যাপে ফিরে যান</span>
+          <span>Sathi AI BD অ্যাপে ফিরে যান</span>
         </button>
 
         <div className="rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
@@ -211,7 +211,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
             <div className="w-11 h-11 rounded-2xl bg-white/15 flex items-center justify-center">
               <Lock className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-xl font-bold">সাথী AI — অ্যাডমিন লগইন</h1>
+            <h1 className="text-xl font-bold">Sathi AI BD — অ্যাডমিন লগইন</h1>
             <p className="text-xs text-blue-100 leading-relaxed">
               কেবল অনুমোদিত অ্যাডমিন অ্যাকাউন্ট দিয়ে প্রবেশ করুন। সার্ভার-সাইড প্রমাণীকরণ ছাড়া কোনো ড্যাশবোর্ড তথ্য প্রদর্শিত হয় না।
             </p>
@@ -336,7 +336,7 @@ export const AdminPage: React.FC<AdminPageProps> = ({
             <ShieldCheck className="w-4 h-4 text-emerald-300" />
             <span>যাচাইকৃত অ্যাডমিন: {adminSession.email}</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold">সাথী AI অ্যাডমিন কন্ট্রোল সেন্টার</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">Sathi AI BD অ্যাডমিন কন্ট্রোল সেন্টার</h1>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">

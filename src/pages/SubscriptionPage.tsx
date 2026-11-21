@@ -173,7 +173,7 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
           {t('Subscription & Usage Quota', 'সাবস্ক্রিপশন ও ব্যবহারের কোটা')}
         </p>
         <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-          {t('Sathi AI Pro Plans', 'সাথী AI প্রো প্ল্যান')}
+          {t('Sathi AI BD Pro Plans', 'Sathi AI BD প্রো প্ল্যান')}
         </h1>
       </div>
 

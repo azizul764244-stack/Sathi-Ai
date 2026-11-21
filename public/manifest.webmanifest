@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Sathi AI (সাথী AI)",
-  "short_name": "Sathi AI",
-  "description": "Multilingual AI Assistant for SSC/HSC Education, General AI Chat, Image Generation, Flow AI Video, and Global Jobs.",
+  "name": "Sathi AI BD",
+  "short_name": "Sathi AI BD",
+  "description": "Sathi AI BD - Bangladesh er bondhu AI",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

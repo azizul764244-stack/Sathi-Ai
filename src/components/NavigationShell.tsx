@@ -178,7 +178,7 @@ export const NavigationShell: React.FC<NavigationShellProps> = ({
             onClick={handleBrandClick}
             className="text-base sm:text-lg font-bold tracking-tight text-blue-800 dark:text-blue-400 whitespace-nowrap shrink-0 font-display focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 rounded-md select-none touch-manipulation py-1 px-1"
           >
-            {t('Sathi AI', 'সাথী AI')}
+            Sathi AI BD
           </button>
 
           {/* Zone 2: 5 clean single-line navigation links */}
@@ -477,6 +477,9 @@ export const NavigationShell: React.FC<NavigationShellProps> = ({
 
           {children}
           {bottomBanner}
+          <footer className="mt-8 pt-4 border-t border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500 dark:text-slate-400">
+            Sathi AI BD
+          </footer>
         </main>
       </div>
 

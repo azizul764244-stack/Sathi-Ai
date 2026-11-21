@@ -207,7 +207,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             <span>{user.location}</span>
           </p>
           <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-            {t('Your All-in-One Sathi AI Dashboard', 'আপনার দৈনন্দিন বাংলা এআই ড্যাশবোর্ড')}
+            {t('Your All-in-One Sathi AI BD Dashboard', 'Sathi AI BD — আপনার দৈনন্দিন বাংলা এআই ড্যাশবোর্ড')}
           </h1>
         </div>
 
@@ -307,9 +307,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
           <div className="relative h-48 lg:h-52 w-full overflow-hidden">
             <ImageWithFallback
               src="/src/assets/images/sathi_hero_banner_1795095210678.jpg"
-              alt={t('Sathi AI Workspace', 'সাথী AI ওয়ার্কস্পেস')}
+              alt={t('Sathi AI BD Workspace', 'Sathi AI BD ওয়ার্কস্পেস')}
               className="w-full h-full object-cover"
-              fallbackTitle={t('Sathi AI Workspace', 'সাথী AI ওয়ার্কস্পেস')}
+              fallbackTitle={t('Sathi AI BD Workspace', 'Sathi AI BD ওয়ার্কস্পেস')}
             />
           </div>
           <div className="p-5 flex-1 flex flex-col justify-between gap-4">

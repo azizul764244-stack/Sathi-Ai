@@ -138,8 +138,8 @@ export const HealthPage: React.FC<HealthPageProps> = ({
           </p>
           <p>
             {t(
-              'Sathi AI only explains general health concepts, medical terms, and medicine precautions. It never diagnoses diseases or replaces a qualified doctor. Always consult an MBBS or licensed physician before taking medication.',
-              'সাথী AI কেবল সাধারণ স্বাস্থ্য তথ্য, চিকিৎসা পরিভাষা এবং ওষুধের সাধারণ সতর্কতা ব্যাখ্যা করে। এটি কোনো রোগ নির্ণয় করে না বা চিকিৎসকের বিকল্প নয়। যেকোনো অসুস্থতা বা ওষুধ গ্রহণের আগে অবশ্যই রেজিস্টার্ড MBBS বা বিশেষজ্ঞ চিকিৎসকের পরামর্শ নিন।'
+              'Sathi AI BD only explains general health concepts, medical terms, and medicine precautions. It never diagnoses diseases or replaces a qualified doctor. Always consult an MBBS or licensed physician before taking medication.',
+              'Sathi AI BD কেবল সাধারণ স্বাস্থ্য তথ্য, চিকিৎসা পরিভাষা এবং ওষুধের সাধারণ সতর্কতা ব্যাখ্যা করে। এটি কোনো রোগ নির্ণয় করে না বা চিকিৎসকের বিকল্প নয়। যেকোনো অসুস্থতা বা ওষুধ গ্রহণের আগে অবশ্যই রেজিস্টার্ড MBBS বা বিশেষজ্ঞ চিকিৎসকের পরামর্শ নিন।'
             )}
           </p>
         </div>

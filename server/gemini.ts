@@ -712,7 +712,7 @@ export async function streamEducationQuestion(
 
   const ai = getAiClient();
   const systemInstruction =
-    'You are Sathi AI Education Mode — an expert SSC / HSC & academic tutor covering Mathematics (algebra, geometry, trigonometry, calculus), Physics, Chemistry, Biology, ICT, Bengali Grammar & Literature, and English Grammar (tense, voice, narration, transformation, composition).\n' +
+    'You are Sathi AI BD Education Mode — an expert SSC / HSC & academic tutor covering Mathematics (algebra, geometry, trigonometry, calculus), Physics, Chemistry, Biology, ICT, Bengali Grammar & Literature, and English Grammar (tense, voice, narration, transformation, composition).\n' +
     buildLanguageAndSpeedRules(params.responseLanguage) +
     '\nFor math or science problems, always provide clear, numbered step-by-step explanations and highlight the final answer. For grammar questions, state the rule and give clear examples.';
 
@@ -831,7 +831,7 @@ export async function streamInternationalJobs(
 
   const ai = getAiClient();
   const systemInstruction =
-    'You are Sathi AI International Jobs Advisor for migrant and skilled workers.\n' +
+    'You are Sathi AI BD International Jobs Advisor for migrant and skilled workers.\n' +
     buildLanguageAndSpeedRules(params.responseLanguage) +
     '\nProvide concise, accurate job overview, qualifications, official/legal application guidance (e.g., BMET / official portals where relevant), and a brief fraud-safety note. Never guarantee fake visas or unverified agencies.';
 
@@ -965,7 +965,7 @@ export async function streamHealthGuidance(
 
   const ai = getAiClient();
   const systemInstruction =
-    'You are Sathi AI General Health Information Assistant.\n' +
+    'You are Sathi AI BD General Health Information Assistant.\n' +
     buildLanguageAndSpeedRules(params.responseLanguage) +
     '\nMEDICAL SAFETY RULES:\n' +
     '1. NEVER diagnose diseases or claim to know what illness the user has.\n' +
@@ -1316,7 +1316,7 @@ export async function streamAssistantChat(
 
   const ai = getAiClient();
   const systemInstruction =
-    'You are Sathi AI (সাথী AI) in General Chat Mode — a ChatGPT-style versatile, creative, and helpful multilingual assistant for everything beyond textbooks: writing stories (গল্প), poems (কবিতা), professional CVs & resumes, cover letters, job interview/BCS/bank exam Q&A, essays, coding, business ideas, translations, image understanding, and any everyday question.\n' +
+    'You are Sathi AI BD in General Chat Mode — a ChatGPT-style versatile, creative, and helpful multilingual assistant for everything beyond textbooks: writing stories (গল্প), poems (কবিতা), professional CVs & resumes, cover letters, job interview/BCS/bank exam Q&A, essays, coding, business ideas, translations, image understanding, and any everyday question.\n' +
     buildLanguageAndSpeedRules(params.responseLanguage) +
     '\nWhen writing stories, poems, CVs, or job answers, format them cleanly and attractively. When an image is provided, analyze its contents accurately and answer clearly.';
 

@@ -331,6 +331,17 @@ export const JobsPage: React.FC<JobsPageProps> = ({
     void executeSearch();
   };
 
+  const handleBeforeModelSwitchRetry = () => {
+    clearDebounceTimer();
+    clearRetryCountdown();
+    setQueueNotice(null);
+  };
+
+  const handleBannerSwitchModel = async (modelId: GeminiModelId) => {
+    activeModelRef.current = modelId;
+    await onSwitchModel(modelId);
+  };
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -498,10 +509,11 @@ export const JobsPage: React.FC<JobsPageProps> = ({
         retryAfterSec={retryAfterSec}
         retryCountdownSec={retryCountdownSec}
         onRetry={handleManualRetry}
+        onBeforeModelSwitchRetry={handleBeforeModelSwitchRetry}
         retrying={loading}
         activeModel={activeModel}
         availableModels={availableModels}
-        onSwitchModel={onSwitchModel}
+        onSwitchModel={handleBannerSwitchModel}
       />
 
       {loading && !answer && (

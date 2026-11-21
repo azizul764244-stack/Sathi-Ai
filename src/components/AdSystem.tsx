@@ -429,8 +429,8 @@ export const InterstitialAdModal: React.FC<InterstitialAdModalProps> = ({
               <Crown className="w-3.5 h-3.5 text-amber-300" />
               <span>
                 {isTestAd
-                  ? t('Google AdMob Test Creative · Sathi AI Pro', 'Google AdMob টেস্ট অ্যাড · সাথী AI প্রো')
-                  : t('Sathi AI · Real Google AdSense Partner', 'সাথী AI · Google AdSense অনুমোদিত')}
+                  ? t('Google AdMob Test Creative · Sathi AI BD Pro', 'Google AdMob টেস্ট অ্যাড · Sathi AI BD প্রো')
+                  : t('Sathi AI BD · Real Google AdSense Partner', 'Sathi AI BD · Google AdSense অনুমোদিত')}
               </span>
             </div>
             <h3 className="text-xl font-bold leading-snug">{ads.interstitial.title}</h3>
@@ -488,7 +488,7 @@ export const InterstitialAdModal: React.FC<InterstitialAdModalProps> = ({
                 ? answerFailed
                   ? t('Close Ad & View Error', 'অ্যাড বন্ধ করে বার্তা দেখুন')
                   : t('View Answer (Skip Ad)', 'উত্তর দেখুন (Skip Ad)')
-                : t('Continue to Sathi AI', 'সাথী AI-তে প্রবেশ করুন')
+                : t('Continue to Sathi AI BD', 'Sathi AI BD-তে প্রবেশ করুন')
               : t(`Wait ${secondsLeft}s to Skip`, `Skip করতে ${secondsLeft}s অপেক্ষা করুন`)}
           </button>
 

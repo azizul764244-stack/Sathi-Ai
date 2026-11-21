@@ -18,7 +18,7 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ variant = 'c
       return (
         <div className="rounded-2xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-4 py-3 flex items-center gap-2.5 text-xs font-semibold text-emerald-800 dark:text-emerald-200">
           <Check className="w-4 h-4 shrink-0" />
-          <span>{t('Sathi AI is installed as a Chrome App!', 'সাথী AI অ্যাপ হিসেবে ইনস্টল করা আছে!')}</span>
+          <span>{t('Sathi AI BD is installed as a Chrome App!', 'Sathi AI BD অ্যাপ হিসেবে ইনস্টল করা আছে!')}</span>
         </div>
       );
     }
@@ -67,13 +67,13 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ variant = 'c
             <div className="space-y-0.5">
               <p className="text-sm font-bold text-white">
                 {t(
-                  'Install Sathi AI from Chrome — Free, No Play Store Needed',
+                  'Install Sathi AI BD from Chrome — Free, No Play Store Needed',
                   'Play Store ছাড়াই Chrome থেকে ফ্রি অ্যাপ ইনস্টল করুন'
                 )}
               </p>
               <p className="text-xs text-blue-200">
                 {t(
-                  'Add to Home Screen in one tap to launch Sathi AI fullscreen like a real mobile app.',
+                  'Add to Home Screen in one tap to launch Sathi AI BD fullscreen like a real mobile app.',
                   'এক ক্লিকে Add to Home Screen করে একদম ফোনের অ্যাপের মতো ব্যবহার করুন — কোনো টাকা লাগবে না।'
                 )}
               </p>
@@ -96,7 +96,7 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ variant = 'c
           className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/75 backdrop-blur-sm p-4"
           role="dialog"
           aria-modal="true"
-          aria-label={t('Install Sathi AI in Chrome', 'Chrome-এ সাথী AI ইনস্টল গাইড')}
+          aria-label={t('Install Sathi AI BD in Chrome', 'Chrome-এ Sathi AI BD ইনস্টল গাইড')}
         >
           <div className="w-full max-w-md rounded-3xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 sm:p-6 shadow-2xl space-y-4">
             <div className="flex items-start justify-between gap-3">
@@ -106,7 +106,7 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ variant = 'c
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    {t('Install Sathi AI (Free Chrome App)', 'সাথী AI অ্যাপ ইনস্টল করুন (ফ্রি)')}
+                    {t('Install Sathi AI BD (Free Chrome App)', 'Sathi AI BD অ্যাপ ইনস্টল করুন (ফ্রি)')}
                   </h3>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     {t('No Play Store fee required', 'Play Store ছাড়াই সরাসরি Chrome থেকে')}
@@ -127,7 +127,7 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ variant = 'c
               <div className="p-4 rounded-2xl bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 space-y-3">
                 <p className="text-xs text-blue-900 dark:text-blue-100 leading-relaxed">
                   {t(
-                    'Your browser supports one-tap installation! Click below to install Sathi AI directly on your device.',
+                    'Your browser supports one-tap installation! Click below to install Sathi AI BD directly on your device.',
                     'আপনার Chrome ব্রাউজারে সরাসরি ১-ট্যাপে ইনস্টল সমর্থন করে। নিচের বাটনে চাপ দিন:'
                   )}
                 </p>
@@ -140,7 +140,7 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ variant = 'c
                   className="w-full min-h-[44px] rounded-xl bg-blue-700 hover:bg-blue-800 text-white text-xs font-bold inline-flex items-center justify-center gap-2"
                 >
                   <Download className="w-4 h-4" />
-                  <span>{t('Install Sathi AI Now', 'এখনই ইনস্টল করুন')}</span>
+                  <span>{t('Install Sathi AI BD Now', 'এখনই ইনস্টল করুন')}</span>
                 </button>
               </div>
             ) : platformHint === 'ios-safari' ? (
@@ -152,7 +152,7 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ variant = 'c
                 <ol className="list-decimal list-inside space-y-1.5 leading-relaxed">
                   <li>{t('Tap the Share icon at the bottom of Safari.', 'নিচের Share বাটনে ট্যাপ করুন।')}</li>
                   <li>{t('Scroll down and tap "Add to Home Screen".', 'নিচে গিয়ে "Add to Home Screen" সিলেক্ট করুন।')}</li>
-                  <li>{t('Tap "Add" — Sathi AI will appear like a native app.', 'ডানপাশে "Add" চাপলে হোম স্ক্রিনে অ্যাপ চলে আসবে।')}</li>
+                  <li>{t('Tap "Add" — Sathi AI BD will appear like a native app.', 'ডানপাশে "Add" চাপলে হোম স্ক্রিনে অ্যাপ চলে আসবে।')}</li>
                 </ol>
               </div>
             ) : (
