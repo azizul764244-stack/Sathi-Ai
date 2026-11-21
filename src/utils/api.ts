@@ -1,4 +1,35 @@
-import type { AiErrorCode } from '../types';
+import type { AiErrorCode, GeminiModelId, GeminiModelOption } from '../types';
+
+export const RATE_LIMIT_RETRY_DELAYS_SEC = [5, 15, 30] as const;
+export const MAX_RATE_LIMIT_RETRIES = 3;
+export const FREE_RATE_LIMIT_MODEL_ORDER: readonly GeminiModelId[] = [
+  'gemini-2.5-flash-lite',
+  'gemini-2.5-flash',
+  'gemini-3.1-flash-lite',
+];
+
+export function getNextFreeRateLimitModel(
+  currentModel: GeminiModelId,
+  availableModels?: GeminiModelOption[]
+): GeminiModelId | null {
+  const currentMeta = availableModels?.find((m) => m.id === currentModel);
+  if (currentMeta?.isFreeTier === false || currentModel === 'gemini-2.5-pro') {
+    return null;
+  }
+
+  const eligibleFreeOrder = FREE_RATE_LIMIT_MODEL_ORDER.filter((id) => {
+    const meta = availableModels?.find((m) => m.id === id);
+    return meta ? meta.isFreeTier : true;
+  });
+
+  if (eligibleFreeOrder.length === 0) return null;
+
+  const idx = eligibleFreeOrder.indexOf(currentModel);
+  if (idx === -1) {
+    return eligibleFreeOrder[0];
+  }
+  return eligibleFreeOrder[(idx + 1) % eligibleFreeOrder.length] ?? null;
+}
 
 export class AiClientError extends Error {
   status?: number;
@@ -27,22 +58,40 @@ function buildErrorFromPayload(
   const retryAfterSec =
     typeof data?.retryAfterSec === 'number' ? data.retryAfterSec : undefined;
 
+  const resolvedStatus =
+    status ??
+    (errorCode === 'rate_limit' || errorCode === 'quota_exhausted'
+      ? 429
+      : errorCode === 'overloaded'
+        ? 503
+        : errorCode === 'not_found'
+          ? 404
+          : errorCode === 'auth'
+            ? 403
+            : undefined);
+
   if (serverMessage && !serverMessage.trim().startsWith('{')) {
     return new AiClientError(serverMessage, {
-      status,
-      errorCode: errorCode ?? (status === 429 ? 'quota_exhausted' : status === 503 ? 'overloaded' : 'unknown'),
+      status: resolvedStatus,
+      errorCode:
+        errorCode ??
+        (resolvedStatus === 429
+          ? 'quota_exhausted'
+          : resolvedStatus === 503
+            ? 'overloaded'
+            : 'unknown'),
       retryAfterSec,
     });
   }
 
-  if (status === 429) {
+  if (resolvedStatus === 429) {
     return new AiClientError(
       'Gemini API-এর অনুরোধ সীমা বা কোটা পূর্ণ হয়েছে (৪২৯)। অনুগ্রহ করে একটু পর আবার চেষ্টা করুন অথবা অন্য একটি ফ্রি মডেল নির্বাচন করুন।',
       { status: 429, errorCode: errorCode ?? 'quota_exhausted', retryAfterSec }
     );
   }
 
-  if (status === 503) {
+  if (resolvedStatus === 503) {
     return new AiClientError(
       'এআই সার্ভারে এখন অতিরিক্ত চাপ রয়েছে (৫০৩)। অনুগ্রহ করে কিছুক্ষণ পর আবার চেষ্টা করুন।',
       { status: 503, errorCode: 'overloaded' }
@@ -50,14 +99,22 @@ function buildErrorFromPayload(
   }
 
   return new AiClientError('এআই সার্ভার থেকে উত্তর আনতে সমস্যা হয়েছে। অনুগ্রহ করে আবার চেষ্টা করুন।', {
-    status,
+    status: resolvedStatus,
     errorCode: errorCode ?? 'unknown',
   });
 }
 
-// Client-side deduplication maps prevent duplicate API requests on double-clicks or re-renders
+// Single-user request queue: only 1 Gemini request is allowed in flight at a time
 const inFlightJsonRequests = new Map<string, Promise<unknown>>();
 const activeStreamUrls = new Set<string>();
+let activeGeminiRequests = 0;
+
+export function isGeminiRequestInFlight(): boolean {
+  return activeGeminiRequests > 0;
+}
+
+const QUEUE_BUSY_MESSAGE =
+  'অনুগ্রহ করে অপেক্ষা করুন... একটি Gemini অনুরোধ ইতিমধ্যেই চলছে। (Please wait...)';
 
 const DEFAULT_AI_TIMEOUT_MS = 75_000;
 const VIDEO_AI_TIMEOUT_MS = 210_000;
@@ -69,8 +126,13 @@ export async function postAiJson<T>(url: string, body: unknown): Promise<T> {
     return existing;
   }
 
+  if (activeGeminiRequests > 0) {
+    throw new AiClientError(QUEUE_BUSY_MESSAGE, { status: 429, errorCode: 'rate_limit' });
+  }
+
   const timeoutMs = url.includes('/video/') ? VIDEO_AI_TIMEOUT_MS : DEFAULT_AI_TIMEOUT_MS;
 
+  activeGeminiRequests += 1;
   const requestPromise = (async () => {
     const controller = new AbortController();
     const timer = window.setTimeout(() => controller.abort(), timeoutMs);
@@ -123,6 +185,7 @@ export async function postAiJson<T>(url: string, body: unknown): Promise<T> {
     return await requestPromise;
   } finally {
     inFlightJsonRequests.delete(dedupeKey);
+    activeGeminiRequests = Math.max(0, activeGeminiRequests - 1);
   }
 }
 
@@ -136,13 +199,11 @@ export async function streamAiSse<TDone>(
   body: unknown,
   callbacks: StreamCallbacks<TDone>
 ): Promise<void> {
-  if (activeStreamUrls.has(url)) {
-    throw new AiClientError(
-      'একটি অনুরোধ ইতিমধ্যেই প্রক্রিয়াধীন রয়েছে। অনুগ্রহ করে উত্তর আসা পর্যন্ত অপেক্ষা করুন।',
-      { status: 429, errorCode: 'rate_limit' }
-    );
+  if (activeGeminiRequests > 0 || activeStreamUrls.has(url)) {
+    throw new AiClientError(QUEUE_BUSY_MESSAGE, { status: 429, errorCode: 'rate_limit' });
   }
 
+  activeGeminiRequests += 1;
   activeStreamUrls.add(url);
   const controller = new AbortController();
   let timeoutId = window.setTimeout(() => controller.abort(), DEFAULT_AI_TIMEOUT_MS);
@@ -268,5 +329,6 @@ export async function streamAiSse<TDone>(
   } finally {
     window.clearTimeout(timeoutId);
     activeStreamUrls.delete(url);
+    activeGeminiRequests = Math.max(0, activeGeminiRequests - 1);
   }
 }

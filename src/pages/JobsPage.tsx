@@ -1,9 +1,16 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Briefcase, ExternalLink, Globe, Loader2, Search, ShieldAlert } from 'lucide-react';
 import { AiErrorBanner } from '../components/AiErrorBanner';
 import { RichAnswer } from '../components/RichAnswer';
 import { useUiLanguage } from '../contexts/UiLanguageContext';
-import { AiClientError, streamAiSse } from '../utils/api';
+import {
+  AiClientError,
+  getNextFreeRateLimitModel,
+  isGeminiRequestInFlight,
+  MAX_RATE_LIMIT_RETRIES,
+  RATE_LIMIT_RETRY_DELAYS_SEC,
+  streamAiSse,
+} from '../utils/api';
 import type {
   AiErrorCode,
   GeminiModelId,
@@ -20,6 +27,77 @@ interface JobsPageProps {
   onSwitchModel: (modelId: GeminiModelId) => Promise<void> | void;
   onBusyChange: (busy: boolean) => void;
   onResultSuccess: (item: HistoryItem, quota: QuotaState) => void;
+}
+
+const JOBS_DEBOUNCE_MS = 1500;
+const JOBS_CACHE_KEY = 'sathi_jobs_last_result_v1';
+const JOBS_CACHE_TTL_MS = 5 * 60 * 1000;
+
+interface CachedJobsPayload {
+  cacheKey: string;
+  answer: string;
+  sources: { title: string; uri: string }[];
+  cachedAt: number;
+}
+
+function buildJobsCacheKey(
+  country: string,
+  category: string,
+  skills: string,
+  responseLanguage: ResponseLanguageCode
+): string {
+  return JSON.stringify({
+    country,
+    category,
+    skills: skills.trim(),
+    responseLanguage,
+  });
+}
+
+function readValidJobsCache(cacheKey: string): {
+  answer: string;
+  sources: { title: string; uri: string }[];
+} | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.localStorage.getItem(JOBS_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<CachedJobsPayload>;
+    if (
+      parsed.cacheKey === cacheKey &&
+      typeof parsed.cachedAt === 'number' &&
+      Date.now() - parsed.cachedAt < JOBS_CACHE_TTL_MS &&
+      typeof parsed.answer === 'string' &&
+      parsed.answer.trim().length > 0
+    ) {
+      return {
+        answer: parsed.answer,
+        sources: Array.isArray(parsed.sources) ? parsed.sources : [],
+      };
+    }
+  } catch {
+    // Ignore storage read errors
+  }
+  return null;
+}
+
+function writeJobsCache(
+  cacheKey: string,
+  answer: string,
+  sources: { title: string; uri: string }[]
+): void {
+  if (typeof window === 'undefined' || !answer.trim()) return;
+  try {
+    const payload: CachedJobsPayload = {
+      cacheKey,
+      answer,
+      sources,
+      cachedAt: Date.now(),
+    };
+    window.localStorage.setItem(JOBS_CACHE_KEY, JSON.stringify(payload));
+  } catch {
+    // Ignore quota/private-mode storage errors
+  }
 }
 
 const COUNTRIES = [
@@ -54,24 +132,93 @@ export const JobsPage: React.FC<JobsPageProps> = ({
   const [country, setCountry] = useState(COUNTRIES[0].id);
   const [category, setCategory] = useState(CATEGORIES[0].id);
   const [skills, setSkills] = useState('');
+  const [debouncing, setDebouncing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [queueNotice, setQueueNotice] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<AiErrorCode | undefined>(undefined);
   const [retryAfterSec, setRetryAfterSec] = useState<number | undefined>(undefined);
+  const [retryCountdownSec, setRetryCountdownSec] = useState<number | null>(null);
   const [answer, setAnswer] = useState<string | null>(null);
   const [sources, setSources] = useState<{ title: string; uri: string }[]>([]);
+
+  const mountedRef = useRef(true);
   const inFlightRef = useRef(false);
+  const debounceTimerRef = useRef<number | null>(null);
+  const countdownIntervalRef = useRef<number | null>(null);
+  const autoRetryAttemptRef = useRef(0);
+  const activeModelRef = useRef<GeminiModelId>(activeModel);
+  const latestParamsRef = useRef({ country, category, skills, responseLanguage });
+
+  latestParamsRef.current = { country, category, skills, responseLanguage };
+
+  useEffect(() => {
+    activeModelRef.current = activeModel;
+  }, [activeModel]);
+
+  const clearDebounceTimer = () => {
+    if (debounceTimerRef.current !== null) {
+      window.clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = null;
+    }
+    setDebouncing(false);
+  };
+
+  const clearRetryCountdown = () => {
+    if (countdownIntervalRef.current !== null) {
+      window.clearInterval(countdownIntervalRef.current);
+      countdownIntervalRef.current = null;
+    }
+    setRetryCountdownSec(null);
+  };
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      if (debounceTimerRef.current !== null) {
+        window.clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+      if (countdownIntervalRef.current !== null) {
+        window.clearInterval(countdownIntervalRef.current);
+        countdownIntervalRef.current = null;
+      }
+    };
+  }, []);
 
   const executeSearch = async () => {
-    if (inFlightRef.current) return;
+    clearRetryCountdown();
+
+    if (inFlightRef.current || isGeminiRequestInFlight()) {
+      setQueueNotice(
+        t(
+          'Please wait... Another Gemini request is already running.',
+          'অনুগ্রহ করে অপেক্ষা করুন... একটি Gemini অনুরোধ ইতিমধ্যেই চলছে।'
+        )
+      );
+      return;
+    }
+
+    const params = latestParamsRef.current;
+    const cacheKey = buildJobsCacheKey(
+      params.country,
+      params.category,
+      params.skills,
+      params.responseLanguage
+    );
+
     inFlightRef.current = true;
     setLoading(true);
     onBusyChange(true);
+    setQueueNotice(null);
     setError(null);
     setErrorCode(undefined);
     setRetryAfterSec(undefined);
     setAnswer('');
     setSources([]);
+
+    let rateLimitErrorForAutoRetry: AiClientError | null = null;
 
     try {
       await streamAiSse<{
@@ -81,12 +228,23 @@ export const JobsPage: React.FC<JobsPageProps> = ({
         quota: QuotaState;
       }>(
         '/api/ai/jobs',
-        { country, category, skills, responseLanguage, modelId: activeModel },
+        {
+          country: params.country,
+          category: params.category,
+          skills: params.skills,
+          responseLanguage: params.responseLanguage,
+          modelId: activeModelRef.current,
+          clientManagedRetry: true,
+        },
         {
           onDelta: (chunk) => {
+            if (!mountedRef.current) return;
             setAnswer((prev) => (prev ?? '') + chunk);
           },
           onDone: (data) => {
+            autoRetryAttemptRef.current = 0;
+            writeJobsCache(cacheKey, data.answer, data.sources || []);
+            if (!mountedRef.current) return;
             setAnswer(data.answer);
             setSources(data.sources || []);
             onResultSuccess(data.historyItem, data.quota);
@@ -94,24 +252,130 @@ export const JobsPage: React.FC<JobsPageProps> = ({
         }
       );
     } catch (err) {
+      if (!mountedRef.current) return;
       setAnswer(null);
       if (err instanceof AiClientError) {
         setError(err.message);
         setErrorCode(err.errorCode);
         setRetryAfterSec(err.retryAfterSec);
+        if (
+          err.status === 429 ||
+          err.errorCode === 'rate_limit' ||
+          err.errorCode === 'quota_exhausted'
+        ) {
+          rateLimitErrorForAutoRetry = err;
+        }
       } else {
-        setError(err instanceof Error ? err.message : t('Unexpected error occurred.', 'অপ্রত্যাশিত ত্রুটি হয়েছে।'));
+        setError(
+          err instanceof Error
+            ? err.message
+            : t('Unexpected error occurred.', 'অপ্রত্যাশিত ত্রুটি হয়েছে।')
+        );
       }
     } finally {
       inFlightRef.current = false;
-      setLoading(false);
-      onBusyChange(false);
+      if (mountedRef.current) {
+        setLoading(false);
+        onBusyChange(false);
+      }
+    }
+
+    if (
+      mountedRef.current &&
+      rateLimitErrorForAutoRetry &&
+      autoRetryAttemptRef.current < MAX_RATE_LIMIT_RETRIES
+    ) {
+      const delaySec = RATE_LIMIT_RETRY_DELAYS_SEC[autoRetryAttemptRef.current];
+      autoRetryAttemptRef.current += 1;
+
+      // Rotate strictly across free-tier models: gemini-2.5-flash-lite -> gemini-2.5-flash -> gemini-3.1-flash-lite
+      const nextFreeModel = getNextFreeRateLimitModel(activeModelRef.current, availableModels);
+      if (nextFreeModel && nextFreeModel !== activeModelRef.current) {
+        activeModelRef.current = nextFreeModel;
+        try {
+          await onSwitchModel(nextFreeModel);
+        } catch {
+          // activeModelRef already points to nextFreeModel for the upcoming retry
+        }
+      }
+
+      if (!mountedRef.current) return;
+      let remaining = delaySec;
+      setRetryCountdownSec(remaining);
+      countdownIntervalRef.current = window.setInterval(() => {
+        if (!mountedRef.current) return;
+        remaining -= 1;
+        if (remaining <= 0) {
+          clearRetryCountdown();
+          void executeSearch();
+        } else {
+          setRetryCountdownSec(remaining);
+        }
+      }, 1000);
     }
   };
 
-  const handleSearch = async (e: React.FormEvent) => {
+  const handleManualRetry = () => {
+    clearDebounceTimer();
+    clearRetryCountdown();
+    if (inFlightRef.current || isGeminiRequestInFlight()) {
+      setQueueNotice(
+        t(
+          'Please wait... Another Gemini request is already running.',
+          'অনুগ্রহ করে অপেক্ষা করুন... একটি Gemini অনুরোধ ইতিমধ্যেই চলছে।'
+        )
+      );
+      return;
+    }
+    autoRetryAttemptRef.current = 0;
+    void executeSearch();
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
-    await executeSearch();
+
+    const cacheKey = buildJobsCacheKey(country, category, skills, responseLanguage);
+    const cached = readValidJobsCache(cacheKey);
+    if (cached) {
+      clearDebounceTimer();
+      clearRetryCountdown();
+      autoRetryAttemptRef.current = 0;
+      setQueueNotice(null);
+      setError(null);
+      setErrorCode(undefined);
+      setRetryAfterSec(undefined);
+      setAnswer(cached.answer);
+      setSources(cached.sources);
+      return;
+    }
+
+    if (inFlightRef.current || loading || isGeminiRequestInFlight()) {
+      setQueueNotice(
+        t(
+          'Please wait... Another Gemini request is already running.',
+          'অনুগ্রহ করে অপেক্ষা করুন... একটি Gemini অনুরোধ ইতিমধ্যেই চলছে।'
+        )
+      );
+      return;
+    }
+
+    clearRetryCountdown();
+    autoRetryAttemptRef.current = 0;
+    setQueueNotice(null);
+    setError(null);
+    setErrorCode(undefined);
+    setRetryAfterSec(undefined);
+
+    if (debounceTimerRef.current !== null) {
+      window.clearTimeout(debounceTimerRef.current);
+    }
+    setDebouncing(true);
+    debounceTimerRef.current = window.setTimeout(() => {
+      debounceTimerRef.current = null;
+      if (!mountedRef.current) return;
+      setDebouncing(false);
+      void executeSearch();
+    }, JOBS_DEBOUNCE_MS);
   };
 
   const activeCountryObj = COUNTRIES.find((c) => c.id === country) ?? COUNTRIES[0];
@@ -199,24 +463,41 @@ export const JobsPage: React.FC<JobsPageProps> = ({
         <div className="flex justify-end">
           <button
             type="submit"
-            disabled={loading}
+            disabled={loading || debouncing}
             className="min-h-[44px] px-6 rounded-xl bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white text-sm font-semibold inline-flex items-center gap-2 transition-colors"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            {loading || debouncing ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <Search className="w-4 h-4" />
+            )}
             <span>
-              {loading
-                ? t('Searching Verified Info...', 'যাচাইকৃত তথ্য খোঁজা হচ্ছে...')
-                : t('Find Jobs & Guide', 'চাকরি ও আবেদন গাইড খুঁজুন')}
+              {debouncing
+                ? t('Please wait...', 'অপেক্ষা করুন...')
+                : loading
+                  ? t('Searching Verified Info...', 'যাচাইকৃত তথ্য খোঁজা হচ্ছে...')
+                  : t('Find Jobs & Guide', 'চাকরি ও আবেদন গাইড খুঁজুন')}
             </span>
           </button>
         </div>
       </form>
 
+      {queueNotice && (
+        <div
+          role="status"
+          className="p-3.5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 flex items-center gap-2.5 text-xs sm:text-sm font-medium text-amber-900 dark:text-amber-200"
+        >
+          <Loader2 className="w-4 h-4 animate-spin shrink-0" />
+          <span>{queueNotice}</span>
+        </div>
+      )}
+
       <AiErrorBanner
         error={error}
         errorCode={errorCode}
         retryAfterSec={retryAfterSec}
-        onRetry={executeSearch}
+        retryCountdownSec={retryCountdownSec}
+        onRetry={handleManualRetry}
         retrying={loading}
         activeModel={activeModel}
         availableModels={availableModels}

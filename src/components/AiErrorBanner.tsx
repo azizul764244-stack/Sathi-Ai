@@ -7,6 +7,7 @@ interface AiErrorBannerProps {
   error: string | null;
   errorCode?: AiErrorCode;
   retryAfterSec?: number;
+  retryCountdownSec?: number | null;
   onRetry?: () => void;
   retrying?: boolean;
   activeModel?: GeminiModelId;
@@ -18,17 +19,20 @@ export const AiErrorBanner: React.FC<AiErrorBannerProps> = ({
   error,
   errorCode,
   retryAfterSec,
+  retryCountdownSec,
   onRetry,
   retrying = false,
   activeModel,
   availableModels,
   onSwitchModel,
 }) => {
-  const { t } = useUiLanguage();
+  const { uiLang, t } = useUiLanguage();
   const [switching, setSwitching] = useState(false);
   const [switchedNotice, setSwitchedNotice] = useState<string | null>(null);
 
   if (!error) return null;
+
+  const isCountingDown = typeof retryCountdownSec === 'number' && retryCountdownSec > 0;
 
   const showModelSwitcher =
     errorCode === 'quota_exhausted' ||
@@ -91,13 +95,22 @@ export const AiErrorBanner: React.FC<AiErrorBannerProps> = ({
             <p className="text-xs sm:text-sm leading-relaxed text-rose-800 dark:text-rose-200">
               {error}
             </p>
-            {retryAfterSec && errorCode === 'rate_limit' && (
-              <p className="text-[11px] font-medium text-rose-700 dark:text-rose-300">
-                {t(
-                  `Suggested wait: retry in about ${retryAfterSec} seconds.`,
-                  `প্রস্তাবিত বিরতি: প্রায় ${retryAfterSec} সেকেন্ড পর আবার চেষ্টা করুন।`
-                )}
+            {isCountingDown ? (
+              <p className="text-[11px] font-semibold text-rose-700 dark:text-rose-300">
+                {uiLang === 'bn'
+                  ? `${retryCountdownSec} সেকেন্ড পর স্বয়ংক্রিয়ভাবে আবার চেষ্টা করা হচ্ছে...`
+                  : `Retrying in ${retryCountdownSec}s (${retryCountdownSec} সেকেন্ড পর আবার চেষ্টা করা হচ্ছে...)`}
               </p>
+            ) : (
+              retryAfterSec &&
+              errorCode === 'rate_limit' && (
+                <p className="text-[11px] font-medium text-rose-700 dark:text-rose-300">
+                  {t(
+                    `Suggested wait: retry in about ${retryAfterSec} seconds.`,
+                    `প্রস্তাবিত বিরতি: প্রায় ${retryAfterSec} সেকেন্ড পর আবার চেষ্টা করুন।`
+                  )}
+                </p>
+              )
             )}
           </div>
         </div>
@@ -114,7 +127,15 @@ export const AiErrorBanner: React.FC<AiErrorBannerProps> = ({
             ) : (
               <RefreshCw className="w-3.5 h-3.5" />
             )}
-            <span>{retrying ? t('Retrying...', 'চেষ্টা করা হচ্ছে...') : t('Retry', 'আবার চেষ্টা করুন')}</span>
+            <span>
+              {retrying
+                ? t('Retrying...', 'চেষ্টা করা হচ্ছে...')
+                : isCountingDown
+                  ? uiLang === 'bn'
+                    ? `${retryCountdownSec} সেকেন্ড পর চেষ্টা...`
+                    : `Retrying in ${retryCountdownSec}s (${retryCountdownSec} সেকেন্ড পর...)`
+                  : t('Retry', 'আবার চেষ্টা করুন')}
+            </span>
           </button>
         )}
       </div>

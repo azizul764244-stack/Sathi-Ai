@@ -206,7 +206,7 @@ export function normalizeGeminiError(err: unknown, attemptedModel?: string): Gem
     }
 
     return new GeminiServiceError(
-      'সাময়িকভাবে Gemini API-এর অনুরোধ সীমা (৪২৯) পূর্ণ হয়েছে। স্বয়ংক্রিয়ভাবে বিরতি দিয়ে পুনরায় চেষ্টা করা হয়েছে—অনুগ্রহ করে কয়েক সেকেন্ড পর আবার চেষ্টা করুন অথবা অন্য একটি ফ্রি মডেল নির্বাচন করুন।',
+      'সাময়িকভাবে Gemini API-এর অনুরোধ সীমা (৪২৯) পূর্ণ হয়েছে। অনুগ্রহ করে কয়েক সেকেন্ড অপেক্ষা করুন অথবা অন্য একটি ফ্রি মডেল নির্বাচন করুন।',
       429,
       true,
       'rate_limit',
@@ -432,6 +432,7 @@ export interface RetryOptions {
   modelId?: string;
   allowNotFoundFallback?: boolean;
   fallbackModels?: string[];
+  skipRateLimitSleep?: boolean;
 }
 
 export async function withGeminiRetry<T>(
@@ -486,6 +487,9 @@ export async function withGeminiRetry<T>(
         const attempt = tempRetryCount;
         tempRetryCount += 1;
         if (normalized.errorCode === 'rate_limit') {
+          if (options?.skipRateLimitSleep) {
+            throw normalized;
+          }
           // If Gemini demands a long cooldown (>20s), avoid firing guaranteed-to-fail rapid retries
           if (normalized.retryAfterSec && normalized.retryAfterSec > 20) {
             throw normalized;
@@ -788,6 +792,7 @@ export async function streamInternationalJobs(
     skills: string;
     responseLanguage?: ResponseLanguageCode;
     modelId?: string;
+    clientManagedRetry?: boolean;
   },
   onDelta: (chunkText: string) => void
 ): Promise<{
@@ -888,7 +893,10 @@ export async function streamInternationalJobs(
         },
         () => !emittedAnyChunk,
         DEFAULT_GEMINI_TIMEOUT_MS,
-        { modelId: activeModel }
+        {
+          modelId: activeModel,
+          skipRateLimitSleep: Boolean(params.clientManagedRetry),
+        }
       );
       setCachedValue(key, result);
       return result;

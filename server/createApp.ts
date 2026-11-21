@@ -417,7 +417,8 @@ app.post('/api/ai/education', async (req, res) => {
 // 2. International Jobs (Google Search Grounded + SSE streaming)
 app.post('/api/ai/jobs', async (req, res) => {
   const startedAt = Date.now();
-  const { country, category, skills, responseLanguage, modelId, stream } = req.body ?? {};
+  const { country, category, skills, responseLanguage, modelId, stream, clientManagedRetry } =
+    req.body ?? {};
   const settings = getAppSettings();
   const wantsStream =
     settings.aiSettings.streamEnabled &&
@@ -446,6 +447,7 @@ app.post('/api/ai/jobs', async (req, res) => {
           skills: skills || '',
           responseLanguage: lang,
           modelId: requestedModel,
+          clientManagedRetry: Boolean(clientManagedRetry),
         },
         (text) => writeSse({ type: 'delta', text })
       );
@@ -501,6 +503,7 @@ app.post('/api/ai/jobs', async (req, res) => {
         skills: skills || '',
         responseLanguage: lang,
         modelId: requestedModel,
+        clientManagedRetry: Boolean(clientManagedRetry),
       },
       () => {}
     );
