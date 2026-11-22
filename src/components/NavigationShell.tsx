@@ -517,9 +517,14 @@ export const NavigationShell: React.FC<NavigationShellProps> = ({
           )}
 
           {children}
-          <footer className="mt-8 pt-4 border-t border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500 dark:text-slate-400">
-            Sathi AI BD
-          </footer>
+          <footer className="mt-8 pt-4 border-t text-center text-sm text-slate-500">
+  <div className="flex justify-center gap-4 mb-2">
+    <a href="/about.html" className="underline">About Us</a>
+    <a href="/privacy.html" className="underline">Privacy Policy</a>
+    <a href="/contact.html" className="underline">Contact Us</a>
+  </div>
+  <p>Sathi AI BD © 2026</p>
+</footer>
         </main>
       </div>
 
