@@ -20,7 +20,6 @@ import {
   Loader2,
   Lock,
   LogOut,
-  Megaphone,
   MessageSquare,
   Plus,
   RefreshCw,
@@ -40,10 +39,8 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
-import { GOOGLE_TEST_ADMOB_CONFIG, REAL_ADSENSE_DEFAULT_CONFIG } from '../components/AdSystem';
 import { adminFetch, setStoredAdminToken } from '../utils/adminToken';
 import type {
-  AdMobConfig,
   AdminDashboardData,
   AdminSessionInfo,
   AppSettingsConfig,
@@ -61,7 +58,6 @@ interface AdminPageProps {
   adminSession: AdminSessionInfo;
   onSessionChange: (next: AdminSessionInfo) => void;
   onAppStateSync: (next: AppStateResponse) => void;
-  onPreviewInterstitial: () => void;
   onExitAdmin: () => void;
 }
 
@@ -69,7 +65,6 @@ export const AdminPage: React.FC<AdminPageProps> = ({
   adminSession,
   onSessionChange,
   onAppStateSync,
-  onPreviewInterstitial,
   onExitAdmin,
 }) => {
   const [activeTab, setActiveTab] = useState<AdminTabId>('overview');
@@ -448,11 +443,10 @@ export const AdminPage: React.FC<AdminPageProps> = ({
       )}
 
       {activeTab === 'settings' && (
-        <SettingsAndAdsTab
+        <SettingsTab
           dashboard={dashboard}
           onApplyMutation={applyDashboardMutation}
           onNotify={notify}
-          onPreviewInterstitial={onPreviewInterstitial}
         />
       )}
 
@@ -1781,43 +1775,21 @@ function normalizeSettingsDraft(raw: AppSettingsConfig): AppSettingsConfig {
   };
 }
 
-const SettingsAndAdsTab: React.FC<{
+const SettingsTab: React.FC<{
   dashboard: AdminDashboardData;
   onApplyMutation: (d: { dashboard?: AdminDashboardData; state?: AppStateResponse }) => void;
   onNotify: (msg: string, type?: 'success' | 'error') => void;
-  onPreviewInterstitial: () => void;
-}> = ({ dashboard, onApplyMutation, onNotify, onPreviewInterstitial }) => {
+}> = ({ dashboard, onApplyMutation, onNotify }) => {
   const [settingsDraft, setSettingsDraft] = useState<AppSettingsConfig>(() =>
     normalizeSettingsDraft(dashboard.appSettings)
   );
   const [dailyLimit, setDailyLimit] = useState(dashboard.quota.dailyLimit);
   const [monthlyLimit, setMonthlyLimit] = useState(dashboard.quota.monthlyLimit);
 
-  const [admobDraft, setAdmobDraft] = useState<AdMobConfig>(() => ({
-    ...REAL_ADSENSE_DEFAULT_CONFIG,
-    ...(dashboard.ads.admobConfig ?? {}),
-  }));
-  const [bannerEnabled, setBannerEnabled] = useState(dashboard.ads.banner.enabled);
-  const [bannerTitle, setBannerTitle] = useState(dashboard.ads.banner.title);
-  const [bannerSubtitle, setBannerSubtitle] = useState(dashboard.ads.banner.subtitle);
-  const [interstitialEnabled, setInterstitialEnabled] = useState(dashboard.ads.interstitial.enabled);
-  const [maxInterstitial, setMaxInterstitial] = useState(
-    Math.min(2, dashboard.ads.interstitial.maxPerSession)
-  );
-
   useEffect(() => {
     setSettingsDraft(normalizeSettingsDraft(dashboard.appSettings));
     setDailyLimit(dashboard.quota.dailyLimit);
     setMonthlyLimit(dashboard.quota.monthlyLimit);
-    setAdmobDraft({
-      ...REAL_ADSENSE_DEFAULT_CONFIG,
-      ...(dashboard.ads.admobConfig ?? {}),
-    });
-    setBannerEnabled(dashboard.ads.banner.enabled);
-    setBannerTitle(dashboard.ads.banner.title);
-    setBannerSubtitle(dashboard.ads.banner.subtitle);
-    setInterstitialEnabled(dashboard.ads.interstitial.enabled);
-    setMaxInterstitial(Math.min(2, dashboard.ads.interstitial.maxPerSession));
   }, [dashboard]);
 
   const handleSaveAppSettings = async (e: React.FormEvent) => {
@@ -1849,39 +1821,6 @@ const SettingsAndAdsTab: React.FC<{
     if (res.ok) {
       onApplyMutation(data);
       onNotify('সিস্টেমের ডিফল্ট কোটা সীমা আপডেট করা হয়েছে।');
-    }
-  };
-
-  const handleSaveAds = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const nextAdmobConfig: AdMobConfig = {
-      ...admobDraft,
-      testMode: admobDraft.providerMode === 'test_ad',
-    };
-    const res = await adminFetch('/api/admin/ads', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'same-origin',
-      body: JSON.stringify({
-        networkMode: admobDraft.providerMode === 'demo_house' ? 'demo_house' : 'admob_ready',
-        admobConfig: nextAdmobConfig,
-        banner: {
-          ...dashboard.ads.banner,
-          enabled: bannerEnabled,
-          title: bannerTitle,
-          subtitle: bannerSubtitle,
-        },
-        interstitial: {
-          ...dashboard.ads.interstitial,
-          enabled: interstitialEnabled,
-          maxPerSession: Math.min(2, Math.max(0, maxInterstitial)),
-        },
-      }),
-    });
-    const data = await res.json();
-    if (res.ok) {
-      onApplyMutation(data);
-      onNotify('AdMob / AdSense Unit ID ও বিজ্ঞাপন কনফিগারেশন সংরক্ষিত হয়েছে।');
     }
   };
 
@@ -2412,302 +2351,6 @@ const SettingsAndAdsTab: React.FC<{
           >
             <Save className="w-4 h-4" />
             <span>কোটা আপডেট করুন</span>
-          </button>
-        </form>
-
-        <form
-          onSubmit={handleSaveAds}
-          className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 space-y-4 text-xs"
-        >
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Megaphone className="w-5 h-5 text-blue-700 dark:text-blue-400" />
-              <h2 className="text-base font-bold text-slate-900 dark:text-white">বিজ্ঞাপন ব্যবস্থাপনা</h2>
-            </div>
-            <button
-              type="button"
-              onClick={onPreviewInterstitial}
-              className="min-h-[38px] px-3 rounded-lg bg-slate-100 dark:bg-slate-800 font-medium inline-flex items-center gap-1.5"
-            >
-              <Eye className="w-3.5 h-3.5" />
-              <span>অ্যাড প্রিভিউ</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-slate-50 dark:bg-slate-800/70 text-center">
-            <div>
-              <p className="text-slate-500 dark:text-slate-400">ব্যানার ভিউ</p>
-              <p className="text-base font-bold font-mono tabular-nums mt-0.5">
-                {dashboard.ads.stats.bannerImpressions}
-              </p>
-            </div>
-            <div>
-              <p className="text-slate-500 dark:text-slate-400">ইন্টারস্টিশাল</p>
-              <p className="text-base font-bold font-mono tabular-nums mt-0.5">
-                {dashboard.ads.stats.interstitialImpressions}
-              </p>
-            </div>
-            <div>
-              <p className="text-slate-500 dark:text-slate-400">মোট ক্লিক</p>
-              <p className="text-base font-bold font-mono tabular-nums mt-0.5">
-                {dashboard.ads.stats.clicks}
-              </p>
-            </div>
-          </div>
-
-          <div className="p-3.5 rounded-xl bg-blue-50/70 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/50 space-y-1 text-[11px] text-blue-900 dark:text-blue-200">
-            <p className="font-bold">সক্রিয় ৩ জায়গার অ্যাড ও Pro নীতিমালা:</p>
-            <p>১. অ্যাপে ঢোকার সময়: ১টি ফুলস্ক্রিন Ad (৫ সেকেন্ড পর Skip/Close)</p>
-            <p>২. পরিচ্ছন্ন লেআউট ব্যানার: শুধুমাত্র Home ও Tools পেজের নিচে ১টি নন-ফ্লোটিং Banner Ad (চ্যাট, উত্তর, ইনপুট বা ন্যাভিগেশনের ওপর কোনো ফ্লোটিং অ্যাড নেই)</p>
-            <p>৩. শিক্ষা বাধ্যতামূলক Ad: প্রশ্ন করার পর উত্তর দেখানোর আগে ৫ সেকেন্ডের Forced Ad</p>
-            <p className="font-semibold text-emerald-700 dark:text-emerald-300 pt-0.5">
-              ✓ Pro প্ল্যানে সব Ad স্বয়ংক্রিয়ভাবে বন্ধ থাকে (অফলাইন সেভড ডেটা ফ্রি ও প্রো সবার জন্য চালু)
-            </p>
-          </div>
-
-          <div className="space-y-3">
-            {/* AdMob / AdSense Unit ID Setup */}
-            <div className="p-4 rounded-xl bg-emerald-50/60 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/50 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`px-2 py-0.5 rounded text-white text-[10px] font-bold ${
-                      admobDraft.providerMode === 'live_admob'
-                        ? 'bg-emerald-600'
-                        : admobDraft.providerMode === 'test_ad'
-                          ? 'bg-amber-600'
-                          : 'bg-slate-600'
-                    }`}
-                  >
-                    {admobDraft.providerMode === 'live_admob'
-                      ? 'REAL ADSENSE ACTIVE'
-                      : admobDraft.providerMode === 'test_ad'
-                        ? 'TEST AD ACTIVE'
-                        : 'DEMO HOUSE'}
-                  </span>
-                  <span className="font-bold text-slate-900 dark:text-white">
-                    Google AdSense / AdMob সেটআপ
-                  </span>
-                </div>
-                <div className="flex flex-wrap items-center gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setAdmobDraft((prev) => ({
-                        ...prev,
-                        providerMode: 'live_admob',
-                        testMode: false,
-                        adsenseClientId: REAL_ADSENSE_DEFAULT_CONFIG.adsenseClientId,
-                      }))
-                    }
-                    className="min-h-[32px] px-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold"
-                  >
-                    Real AdSense বসান
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setAdmobDraft({
-                        ...GOOGLE_TEST_ADMOB_CONFIG,
-                        adsenseClientId: admobDraft.adsenseClientId,
-                        adsenseBannerSlot: admobDraft.adsenseBannerSlot,
-                        adsenseInterstitialSlot: admobDraft.adsenseInterstitialSlot,
-                      })
-                    }
-                    className="min-h-[32px] px-2.5 rounded-lg bg-white dark:bg-slate-900 border border-amber-300 dark:border-amber-800 text-[11px] font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-50"
-                  >
-                    Google Test ID বসান
-                  </button>
-                </div>
-              </div>
-
-              <div>
-                <label className="block font-semibold mb-1">অ্যাড প্রোভাইডার মোড</label>
-                <select
-                  value={admobDraft.providerMode}
-                  onChange={(e) => {
-                    const nextMode = e.target.value as AdMobConfig['providerMode'];
-                    setAdmobDraft((prev) => ({
-                      ...prev,
-                      providerMode: nextMode,
-                      testMode: nextMode === 'test_ad',
-                    }));
-                  }}
-                  className="w-full min-h-[42px] px-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-semibold"
-                >
-                  <option value="live_admob">
-                    Real Google AdSense / AdMob চালু (ca-pub-9416678178678630)
-                  </option>
-                  <option value="test_ad">Google Test Ad (পরীক্ষার জন্য Test ID)</option>
-                  <option value="demo_house">অভ্যন্তরীণ সাথী ডিমো অ্যাডস</option>
-                </select>
-              </div>
-
-              <div className="pt-1 space-y-2">
-                <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200">
-                  Chrome / Vercel ওয়েবসাইট AdSense কনফিগারেশন (Auto Ads + Banner Slot):
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <div>
-                    <label className="block text-[10px] font-semibold mb-1">
-                      AdSense Publisher ID
-                    </label>
-                    <input
-                      type="text"
-                      value={admobDraft.adsenseClientId}
-                      onChange={(e) =>
-                        setAdmobDraft((p) => ({ ...p, adsenseClientId: e.target.value }))
-                      }
-                      placeholder="ca-pub-9416678178678630"
-                      className="w-full min-h-[38px] px-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[11px]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-semibold mb-1">
-                      Banner Ad Slot ID (ঐচ্ছিক)
-                    </label>
-                    <input
-                      type="text"
-                      value={admobDraft.adsenseBannerSlot}
-                      onChange={(e) =>
-                        setAdmobDraft((p) => ({ ...p, adsenseBannerSlot: e.target.value }))
-                      }
-                      placeholder="Banner Slot ID"
-                      className="w-full min-h-[38px] px-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[11px]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[10px] font-semibold mb-1">
-                      Display/Interstitial Slot ID (ঐচ্ছিক)
-                    </label>
-                    <input
-                      type="text"
-                      value={admobDraft.adsenseInterstitialSlot}
-                      onChange={(e) =>
-                        setAdmobDraft((p) => ({ ...p, adsenseInterstitialSlot: e.target.value }))
-                      }
-                      placeholder="Display Slot ID"
-                      className="w-full min-h-[38px] px-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[11px]"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="pt-2 border-t border-emerald-200 dark:border-emerald-900/50 space-y-2">
-                <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200">
-                  Android AdMob Unit ID (ঐচ্ছিক — Test ID অথবা আসল Android App Unit ID):
-                </p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  <div>
-                    <label className="block font-semibold mb-1">AdMob App ID</label>
-                    <input
-                      type="text"
-                      value={admobDraft.appId}
-                      onChange={(e) => setAdmobDraft((p) => ({ ...p, appId: e.target.value }))}
-                      placeholder="ca-app-pub-3940256099942544~3347511713"
-                      className="w-full min-h-[38px] px-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[11px]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-semibold mb-1">Banner Ad Unit ID</label>
-                    <input
-                      type="text"
-                      value={admobDraft.bannerUnitId}
-                      onChange={(e) => setAdmobDraft((p) => ({ ...p, bannerUnitId: e.target.value }))}
-                      placeholder="ca-app-pub-3940256099942544/6300978111"
-                      className="w-full min-h-[38px] px-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[11px]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-semibold mb-1">Entry Interstitial Unit ID</label>
-                    <input
-                      type="text"
-                      value={admobDraft.entryInterstitialUnitId}
-                      onChange={(e) =>
-                        setAdmobDraft((p) => ({ ...p, entryInterstitialUnitId: e.target.value }))
-                      }
-                      placeholder="ca-app-pub-3940256099942544/1033173712"
-                      className="w-full min-h-[38px] px-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[11px]"
-                    />
-                  </div>
-                  <div>
-                    <label className="block font-semibold mb-1">Study Forced Ad Unit ID</label>
-                    <input
-                      type="text"
-                      value={admobDraft.studyInterstitialUnitId}
-                      onChange={(e) =>
-                        setAdmobDraft((p) => ({ ...p, studyInterstitialUnitId: e.target.value }))
-                      }
-                      placeholder="ca-app-pub-3940256099942544/1033173712"
-                      className="w-full min-h-[38px] px-3 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 font-mono text-[11px]"
-                    />
-                  </div>
-                </div>
-                <p className="text-[10px] text-slate-500 dark:text-slate-400">
-                  বর্তমানে Real Google AdSense (`ca-pub-9416678178678630`) সক্রিয় আছে ও `index.html` + `ads.txt`-এ যুক্ত রয়েছে। চাইলে উপরের `Google Test ID বসান` বাটনে ক্লিক করে যেকোনো সময় Test মোডে নিতে পারবেন।
-                </p>
-              </div>
-            </div>
-
-            <div>
-              <label className="block font-semibold mb-1">বটম ব্যানার শিরোনাম</label>
-              <input
-                type="text"
-                value={bannerTitle}
-                onChange={(e) => setBannerTitle(e.target.value)}
-                className="w-full min-h-[42px] px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
-              />
-            </div>
-            <div>
-              <label className="block font-semibold mb-1">বটম ব্যানার বিবরণ</label>
-              <input
-                type="text"
-                value={bannerSubtitle}
-                onChange={(e) => setBannerSubtitle(e.target.value)}
-                className="w-full min-h-[42px] px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700"
-              />
-            </div>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <label className="inline-flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={bannerEnabled}
-                  onChange={(e) => setBannerEnabled(e.target.checked)}
-                  className="w-4 h-4 accent-blue-700"
-                />
-                <span>স্থায়ী ব্যানার অ্যাড চালু</span>
-              </label>
-              <label className="inline-flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={interstitialEnabled}
-                  onChange={(e) => setInterstitialEnabled(e.target.checked)}
-                  className="w-4 h-4 accent-blue-700"
-                />
-                <span>এন্ট্রি ও শিক্ষা Forced ৫সেকেণ্ড Ad</span>
-              </label>
-            </div>
-            <div>
-              <label className="block font-semibold mb-1">সেশন প্রতি সর্বোচ্চ ফুল-স্ক্রিন অ্যাড</label>
-              <input
-                type="number"
-                min={0}
-                max={2}
-                value={maxInterstitial}
-                onChange={(e) =>
-                  setMaxInterstitial(Math.min(2, Math.max(0, Number(e.target.value))))
-                }
-                className="w-24 min-h-[40px] px-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 font-mono"
-              />
-            </div>
-          </div>
-
-          <button
-            type="submit"
-            className="min-h-[42px] px-4 rounded-xl bg-blue-700 hover:bg-blue-800 text-white font-semibold inline-flex items-center gap-2"
-          >
-            <Save className="w-4 h-4" />
-            <span>বিজ্ঞাপন সেটিংস সংরক্ষণ</span>
           </button>
         </form>
       </div>

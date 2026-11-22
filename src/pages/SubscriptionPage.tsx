@@ -219,8 +219,8 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
           </p>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
             {subscription.isPaid
-              ? t('Ad-free · Priority Daily Quota', 'বিজ্ঞাপনমুক্ত · উচ্চ দৈনিক কোটা')
-              : t('Ad-supported · Offline Saved Data ON', 'বিজ্ঞাপনযুক্ত · অফলাইনে সেভড ডেটা চালু')}
+              ? t('Priority Speed · High Daily Quota', 'দ্রুতগতির AI · উচ্চ দৈনিক কোটা')
+              : t('Free Starter · Offline Saved Data ON', 'ফ্রি স্টার্টার · অফলাইনে সেভড ডেটা চালু')}
           </p>
         </div>
       </div>
@@ -253,7 +253,7 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
                   `মাসিক ${freePlan?.monthlyLimit ?? 150}টি অনুরোধ কোটা`
                 )}
               </li>
-              <li>• {t('Ads enabled (Entry, Banner & 5s Study Ad)', 'বিজ্ঞাপন চালু (প্রবেশ, ব্যানার ও পড়াশোনার Ad)')}</li>
+              <li>• {t('Clean workspace · All core AI tools', 'পরিচ্ছন্ন ইন্টারফেস · সকল মূল এআই টুলস')}</li>
               <li>• {t('Offline Saved Chats & Notes ON (Local Storage)', 'অফলাইনে সেভড চ্যাট ও শিক্ষার নোট পড়া যাবে')}</li>
             </ul>
           </div>
@@ -296,7 +296,7 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
                   `দৈনিক ${oneMonthPlan?.dailyLimit ?? 200}টি এআই অনুরোধ`
                 )}
               </li>
-              <li>• {t('Zero Ads (All 3 Ad Slots Turned OFF)', 'সব বিজ্ঞাপন বন্ধ (সম্পূর্ণ অ্যাড-মুক্ত)')}</li>
+              <li>• {t('2500 monthly AI request quota', 'মাসিক ২৫০০টি এআই অনুরোধ কোটা')}</li>
               <li>• {t('Priority AI Speed & All Model Modes', 'দ্রুতগতির AI উত্তর ও সকল মডেল সুবিধা')}</li>
             </ul>
           </div>
@@ -339,7 +339,7 @@ export const SubscriptionPage: React.FC<SubscriptionPageProps> = ({
                   `দৈনিক ${threeMonthPlan?.dailyLimit ?? 200}টি ও মাসিক ${threeMonthPlan?.monthlyLimit ?? 6000} কোটা`
                 )}
               </li>
-              <li>• {t('Zero Ads (Entry, Banner & Forced Ad Disabled)', 'সম্পূর্ণ বিজ্ঞাপনমুক্ত অভিজ্ঞতা (সব Ad বন্ধ)')}</li>
+              <li>• {t('Priority AI Speed & All Model Modes', 'দ্রুতগতির AI উত্তর ও সকল মডেল সুবিধা')}</li>
               <li>• {t('Highest Monthly Quota + Saved Chats & Notes', 'সর্বোচ্চ মাসিক কোটা ও সংরক্ষিত চ্যাট-নোট সুবিধা')}</li>
             </ul>
           </div>

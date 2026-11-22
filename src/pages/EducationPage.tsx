@@ -10,16 +10,13 @@ import {
   Trash2,
   WifiOff,
 } from 'lucide-react';
-import { InterstitialAdModal } from '../components/AdSystem';
 import { AiErrorBanner } from '../components/AiErrorBanner';
 import { RichAnswer } from '../components/RichAnswer';
 import { VoiceInputButton } from '../components/VoiceControls';
 import { useUiLanguage } from '../contexts/UiLanguageContext';
 import { AiClientError, streamAiSse } from '../utils/api';
 import type {
-  AdSystemState,
   AiErrorCode,
-  AppPage,
   GeminiModelId,
   GeminiModelOption,
   HistoryItem,
@@ -29,9 +26,7 @@ import type {
 
 interface EducationPageProps {
   enabled?: boolean;
-  isPaidUser: boolean;
   isOnline: boolean;
-  ads: AdSystemState;
   educationHistory?: HistoryItem[];
   initialQuestion?: string;
   responseLanguage: ResponseLanguageCode;
@@ -40,8 +35,6 @@ interface EducationPageProps {
   onSwitchModel: (modelId: GeminiModelId) => Promise<void> | void;
   onClearInitialQuestion: () => void;
   onBusyChange: (busy: boolean) => void;
-  onNavigate: (page: AppPage) => void;
-  onTrackAd: (event: 'interstitial_impression' | 'click') => void;
   onResultSuccess: (item: HistoryItem, quota: QuotaState) => void;
 }
 
@@ -83,9 +76,7 @@ const SAMPLE_QUESTIONS = [
 
 export const EducationPage: React.FC<EducationPageProps> = ({
   enabled = true,
-  isPaidUser,
   isOnline,
-  ads,
   educationHistory = [],
   initialQuestion,
   responseLanguage,
@@ -94,8 +85,6 @@ export const EducationPage: React.FC<EducationPageProps> = ({
   onSwitchModel,
   onClearInitialQuestion,
   onBusyChange,
-  onNavigate,
-  onTrackAd,
   onResultSuccess,
 }) => {
   const { uiLang, t, formatDate } = useUiLanguage();
@@ -111,9 +100,6 @@ export const EducationPage: React.FC<EducationPageProps> = ({
   const [retryAfterSec, setRetryAfterSec] = useState<number | undefined>(undefined);
   const [answer, setAnswer] = useState<string | null>(null);
 
-  // Forced Study Ad Gate: free users watch 5-second fullscreen ad before answer unlocks
-  const [forcedAdOpen, setForcedAdOpen] = useState(false);
-  const [adGateCleared, setAdGateCleared] = useState(true);
   const [expandedNoteId, setExpandedNoteId] = useState<string | null>(
     educationHistory[0]?.id ?? null
   );
@@ -192,16 +178,6 @@ export const EducationPage: React.FC<EducationPageProps> = ({
     setRetryAfterSec(undefined);
     setAnswer('');
 
-    // Place C: For free users, trigger mandatory 5s Study Ad between question and answer
-    const shouldGateWithForcedAd = !isPaidUser && ads.interstitial.enabled;
-    if (shouldGateWithForcedAd) {
-      setAdGateCleared(false);
-      setForcedAdOpen(true);
-    } else {
-      setAdGateCleared(true);
-      setForcedAdOpen(false);
-    }
-
     try {
       await streamAiSse<{ answer: string; historyItem: HistoryItem; quota: QuotaState }>(
         '/api/ai/education',
@@ -246,7 +222,6 @@ export const EducationPage: React.FC<EducationPageProps> = ({
   };
 
   const activeSubjectObj = SUBJECTS.find((s) => s.id === subject) ?? SUBJECTS[0];
-  const canDisplayAnswer = Boolean(answer) && adGateCleared;
 
   return (
     <div className="space-y-6">
@@ -259,12 +234,6 @@ export const EducationPage: React.FC<EducationPageProps> = ({
             {t('SSC / HSC Study & Question Solver', 'SSC / HSC পড়াশোনার প্রশ্ন সমাধান')}
           </h1>
         </div>
-
-        {!isPaidUser && ads.interstitial.enabled && (
-          <span className="px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] font-semibold text-amber-800 dark:text-amber-300">
-            {t('Free Mode: 5s Ad before answer (Pro = Ad-Free)', 'ফ্রি মোড: উত্তরের আগে ৫ সেকেন্ড অ্যাড (Pro = অ্যাড-মুক্ত)')}
-          </span>
-        )}
       </div>
 
       {!isOnline && (
@@ -422,29 +391,25 @@ export const EducationPage: React.FC<EducationPageProps> = ({
         </div>
       </form>
 
-      {/* Error banner only shown after any ad overlay closes */}
-      {!forcedAdOpen && (
-        <AiErrorBanner
-          error={error}
-          errorCode={errorCode}
-          retryAfterSec={retryAfterSec}
-          onRetry={executeSolve}
-          retrying={loading}
-          activeModel={activeModel}
-          availableModels={availableModels}
-          onSwitchModel={onSwitchModel}
-        />
-      )}
+      <AiErrorBanner
+        error={error}
+        errorCode={errorCode}
+        retryAfterSec={retryAfterSec}
+        onRetry={executeSolve}
+        retrying={loading}
+        activeModel={activeModel}
+        availableModels={availableModels}
+        onSwitchModel={onSwitchModel}
+      />
 
-      {/* Pending notice while ad was dismissed cleanly and answer is still streaming */}
-      {loading && (!answer || !adGateCleared) && !forcedAdOpen && (
+      {loading && !answer && (
         <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
           <Loader2 className="w-5 h-5 animate-spin text-blue-700 dark:text-blue-400 shrink-0" />
           <span>{t('Generating fast step-by-step answer...', 'দ্রুত সমাধান তৈরি হচ্ছে...')}</span>
         </div>
       )}
 
-      {canDisplayAnswer && answer && (
+      {Boolean(answer) && answer && (
         <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-5 sm:p-6">
           <div className="flex items-center gap-2 pb-3 mb-4 border-b border-slate-100 dark:border-slate-800">
             <BookOpen className="w-5 h-5 text-blue-700 dark:text-blue-400" />
@@ -515,27 +480,6 @@ export const EducationPage: React.FC<EducationPageProps> = ({
           </div>
         </section>
       )}
-
-      {/* Mandatory 5s Study Interstitial Ad (Place C) */}
-      <InterstitialAdModal
-        open={forcedAdOpen && !isPaidUser}
-        mode="forced_study"
-        ads={ads}
-        shownCount={1}
-        countdownSeconds={5}
-        answerReady={Boolean(answer && !loading && !error)}
-        answerFailed={Boolean(error && !loading)}
-        onClose={() => {
-          setForcedAdOpen(false);
-          setAdGateCleared(true);
-        }}
-        onNavigate={(page) => {
-          setForcedAdOpen(false);
-          setAdGateCleared(true);
-          onNavigate(page);
-        }}
-        onTrack={onTrackAd}
-      />
     </div>
   );
 };

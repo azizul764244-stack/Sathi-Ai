@@ -5,6 +5,7 @@ import {
   ChevronUp,
   Crown,
   ExternalLink,
+  LogOut,
   MessageSquareText,
   Moon,
   Pin,
@@ -16,6 +17,7 @@ import { ImageWithFallback } from '../components/ImageWithFallback';
 import { LanguageSelector } from '../components/LanguageSelector';
 import { RichAnswer } from '../components/RichAnswer';
 import { useUiLanguage } from '../contexts/UiLanguageContext';
+import { getStoredGoogleUser, saveStoredGoogleUser } from '../utils/googleAuth';
 import type {
   AppPage,
   AppStateResponse,
@@ -289,6 +291,7 @@ interface ProfileViewProps {
   onToggleTheme: () => void;
   onStateSync: (state: AppStateResponse) => void;
   onNavigate: (page: AppPage) => void;
+  onLogout?: () => Promise<void> | void;
 }
 
 export const ProfileView: React.FC<ProfileViewProps> = ({
@@ -301,6 +304,7 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   onToggleTheme,
   onStateSync,
   onNavigate,
+  onLogout,
 }) => {
   const { uiLang, setUiLang, t } = useUiLanguage();
   const [name, setName] = useState(user.name);
@@ -308,6 +312,14 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
   const [email, setEmail] = useState(user.email);
   const [location, setLocation] = useState(user.location);
   const [savedMsg, setSavedMsg] = useState<string | null>(null);
+  const [loggingOut, setLoggingOut] = useState(false);
+
+  React.useEffect(() => {
+    setName(user.name);
+    setPhone(user.phone);
+    setEmail(user.email);
+    setLocation(user.location);
+  }, [user.name, user.phone, user.email, user.location]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -325,6 +337,10 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
     });
     const data = await res.json();
     if (res.ok && data.state) {
+      const storedGoogle = getStoredGoogleUser();
+      if (storedGoogle && data.state.user?.name) {
+        saveStoredGoogleUser({ ...storedGoogle, name: data.state.user.name });
+      }
       onStateSync(data.state);
       setSavedMsg(t('Profile saved successfully.', 'প্রোফাইল তথ্য সংরক্ষিত হয়েছে।'));
       setTimeout(() => setSavedMsg(null), 2200);
@@ -353,6 +369,9 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
             />
             <div className="min-w-0">
               <h2 className="text-base font-bold text-slate-900 dark:text-white truncate">{user.name}</h2>
+              {user.email && (
+                <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user.email}</p>
+              )}
               <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user.location}</p>
               <p className="text-xs font-semibold text-blue-700 dark:text-blue-400 mt-1">
                 {subscription.isPaid ? subscription.planNameBn : t('Free Plan', subscription.planNameBn)}
@@ -421,6 +440,25 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
               <span>{t('Manage Subscription', 'সাবস্ক্রিপশন পরিচালনা')}</span>
               <Crown className="w-4 h-4" />
             </button>
+
+            {onLogout && (
+              <button
+                type="button"
+                disabled={loggingOut}
+                onClick={async () => {
+                  setLoggingOut(true);
+                  try {
+                    await onLogout();
+                  } finally {
+                    setLoggingOut(false);
+                  }
+                }}
+                className="w-full min-h-[44px] px-4 rounded-xl border border-rose-200 dark:border-rose-800/80 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 text-xs font-semibold flex items-center justify-between transition-colors disabled:opacity-60"
+              >
+                <span>{loggingOut ? t('Logging out...', 'লগআউট হচ্ছে...') : t('Logout', 'লগআউট')}</span>
+                <LogOut className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
 

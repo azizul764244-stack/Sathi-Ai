@@ -1,8 +1,8 @@
-const CACHE_NAME = 'sathi-ai-shell-v2';
+const CACHE_NAME = 'sathi-ai-shell-v3';
 const PRECACHE_ASSETS = [
   '/',
   '/manifest.webmanifest',
-  '/icon.svg',
+  '/sathi-logo.png',
   '/pwa-192x192.png',
   '/pwa-512x512.png',
   '/apple-touch-icon.png',

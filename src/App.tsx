@@ -1,10 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Loader2 } from 'lucide-react';
-import {
-  BottomBannerAd,
-  InterstitialAdModal,
-  type InterstitialAdMode,
-} from './components/AdSystem';
+import { LoginScreen } from './components/LoginScreen';
 import { NavigationShell } from './components/NavigationShell';
 import { UiLanguageProvider, useUiLanguage } from './contexts/UiLanguageContext';
 import { AdminPage } from './pages/AdminPage';
@@ -21,6 +17,11 @@ import { VideoStudioPage } from './pages/VideoStudioPage';
 import { normalizeLanguageCode } from './constants/languages';
 import { adminFetch, setStoredAdminToken } from './utils/adminToken';
 import {
+  fetchServerGoogleSession,
+  getStoredGoogleUser,
+  logoutGoogleUser,
+} from './utils/googleAuth';
+import {
   createFallbackOfflineState,
   loadOfflineSnapshot,
   saveOfflineSnapshot,
@@ -32,6 +33,7 @@ import type {
   AppStateResponse,
   ChatConversation,
   GeminiModelId,
+  GoogleAuthUser,
   HistoryItem,
   QuotaState,
   ResponseLanguageCode,
@@ -51,6 +53,9 @@ function isHiddenAdminLocation(): boolean {
 }
 
 interface AppInnerProps {
+  authUser: GoogleAuthUser | null;
+  onLoginSuccess: (nextUser: GoogleAuthUser, nextState?: AppStateResponse) => void;
+  onLogout: () => Promise<void>;
   appState: AppStateResponse | null;
   setAppState: React.Dispatch<React.SetStateAction<AppStateResponse | null>>;
   adminSession: AdminSessionInfo;
@@ -68,6 +73,9 @@ interface AppInnerProps {
 }
 
 function AppInner({
+  authUser,
+  onLoginSuccess,
+  onLogout,
   appState,
   setAppState,
   adminSession,
@@ -88,15 +96,10 @@ function AppInner({
     isHiddenAdminLocation() ? 'admin' : 'home'
   );
 
-  const [isTaskBusy, setIsTaskBusy] = useState(false);
-  const [interstitialOpen, setInterstitialOpen] = useState(false);
-  const [interstitialMode, setInterstitialMode] = useState<InterstitialAdMode>('entry');
-  const [interstitialShownCount, setInterstitialShownCount] = useState(0);
+  const handleBusyChange = useCallback((_busy: boolean) => {}, []);
 
   const [pendingEducationQuestion, setPendingEducationQuestion] = useState<string>('');
   const [pendingVideoPrompt, setPendingVideoPrompt] = useState<string>('');
-
-  const entryAdTriggeredRef = useRef(false);
 
   useEffect(() => {
     const onLocationChange = () => {
@@ -148,47 +151,6 @@ function AppInner({
     }
     setAppState(data.state);
   };
-
-  const trackAdEvent = useCallback(
-    async (event: 'banner_impression' | 'interstitial_impression' | 'click') => {
-      try {
-        const res = await fetch('/api/ads/track', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ event }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          setAppState((prev) =>
-            prev ? { ...prev, ads: { ...prev.ads, stats: data.stats } } : prev
-          );
-        }
-      } catch {
-        // Ignore analytics failure
-      }
-    },
-    [setAppState]
-  );
-
-  // Place A: Entry Fullscreen Ad when entering the app (5s countdown before Skip/Close)
-  // Automatically suppressed for Pro users, Admin portal, Health page, or Offline mode
-  useEffect(() => {
-    if (loading || !appState) return;
-    if (entryAdTriggeredRef.current) return;
-    if (
-      isOnline &&
-      !appState.subscription.isPaid &&
-      appState.ads.interstitial.enabled &&
-      currentPage !== 'admin' &&
-      currentPage !== 'health' &&
-      currentPage !== 'subscription'
-    ) {
-      entryAdTriggeredRef.current = true;
-      setInterstitialMode('entry');
-      setInterstitialShownCount(1);
-      setInterstitialOpen(true);
-    }
-  }, [loading, appState, isOnline, currentPage]);
 
   const handleNavigate = (nextPage: AppPage) => {
     if (nextPage === 'admin') {
@@ -260,6 +222,18 @@ function AppInner({
     }
   };
 
+  if (!authUser && currentPage !== 'admin') {
+    return (
+      <LoginScreen
+        onSuccess={(signedInUser, nextState) => {
+          onLoginSuccess(signedInUser, nextState);
+          setCurrentPage('home');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+      />
+    );
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 dark:bg-slate-950 text-slate-700 dark:text-slate-200 gap-3">
@@ -309,16 +283,6 @@ function AppInner({
         availableModels={appState.integrations.availableModels}
         onSwitchModel={handleSwitchModel}
         isOnline={isOnline}
-        bottomBanner={
-          <BottomBannerAd
-            ads={appState.ads}
-            isPaidUser={appState.subscription.isPaid}
-            currentPage={currentPage}
-            isTaskBusy={isTaskBusy}
-            onNavigate={handleNavigate}
-            onTrack={trackAdEvent}
-          />
-        }
       >
         {currentPage === 'home' && (
           <HomeView
@@ -349,7 +313,7 @@ function AppInner({
             activeModel={appState.integrations.geminiModel}
             availableModels={appState.integrations.availableModels}
             onSwitchModel={handleSwitchModel}
-            onBusyChange={setIsTaskBusy}
+            onBusyChange={handleBusyChange}
             onQuotaUpdate={(quota) => {
               handleQuotaUpdate(quota);
             }}
@@ -363,9 +327,7 @@ function AppInner({
         {currentPage === 'education' && (
           <EducationPage
             enabled={aiFeatures?.educationEnabled ?? true}
-            isPaidUser={appState.subscription.isPaid}
             isOnline={isOnline}
-            ads={appState.ads}
             educationHistory={educationHistory}
             initialQuestion={pendingEducationQuestion}
             onClearInitialQuestion={() => setPendingEducationQuestion('')}
@@ -373,9 +335,7 @@ function AppInner({
             activeModel={appState.integrations.geminiModel}
             availableModels={appState.integrations.availableModels}
             onSwitchModel={handleSwitchModel}
-            onBusyChange={setIsTaskBusy}
-            onNavigate={handleNavigate}
-            onTrackAd={trackAdEvent}
+            onBusyChange={handleBusyChange}
             onResultSuccess={(item, quota) => handleResultSuccess(item, quota)}
           />
         )}
@@ -386,7 +346,7 @@ function AppInner({
             activeModel={appState.integrations.geminiModel}
             availableModels={appState.integrations.availableModels}
             onSwitchModel={handleSwitchModel}
-            onBusyChange={setIsTaskBusy}
+            onBusyChange={handleBusyChange}
             onResultSuccess={(item, quota) => handleResultSuccess(item, quota)}
           />
         )}
@@ -397,7 +357,7 @@ function AppInner({
             activeModel={appState.integrations.geminiModel}
             availableModels={appState.integrations.availableModels}
             onSwitchModel={handleSwitchModel}
-            onBusyChange={setIsTaskBusy}
+            onBusyChange={handleBusyChange}
             onResultSuccess={(item, quota) => handleResultSuccess(item, quota)}
           />
         )}
@@ -408,7 +368,7 @@ function AppInner({
             activeModel={appState.integrations.geminiModel}
             availableModels={appState.integrations.availableModels}
             onSwitchModel={handleSwitchModel}
-            onBusyChange={setIsTaskBusy}
+            onBusyChange={handleBusyChange}
             onResultSuccess={(item, quota) => handleResultSuccess(item, quota)}
             onSendPromptToVideoStudio={(prompt) => {
               setPendingVideoPrompt(prompt);
@@ -425,7 +385,7 @@ function AppInner({
             responseLanguage={responseLanguage}
             integrations={appState.integrations}
             onSwitchModel={handleSwitchModel}
-            onBusyChange={setIsTaskBusy}
+            onBusyChange={handleBusyChange}
             onResultSuccess={handleResultSuccess}
           />
         )}
@@ -437,7 +397,7 @@ function AppInner({
             activeModel={appState.integrations.geminiModel}
             availableModels={appState.integrations.availableModels}
             onSwitchModel={handleSwitchModel}
-            onBusyChange={setIsTaskBusy}
+            onBusyChange={handleBusyChange}
             onQuotaUpdate={handleQuotaUpdate}
             onResultSuccess={handleResultSuccess}
           />
@@ -480,6 +440,7 @@ function AppInner({
             onChangeLanguage={handleSelectResponseLanguage}
             onStateSync={setAppState}
             onNavigate={handleNavigate}
+            onLogout={onLogout}
           />
         )}
 
@@ -488,10 +449,6 @@ function AppInner({
             adminSession={adminSession}
             onSessionChange={setAdminSession}
             onAppStateSync={setAppState}
-            onPreviewInterstitial={() => {
-              setInterstitialMode('preview');
-              setInterstitialOpen(true);
-            }}
             onExitAdmin={() => {
               if (window.location.hash === '#/sathi-admin' || window.location.hash === '#sathi-admin') {
                 window.history.replaceState(null, '', window.location.pathname + window.location.search);
@@ -501,22 +458,12 @@ function AppInner({
           />
         )}
       </NavigationShell>
-
-      <InterstitialAdModal
-        open={interstitialOpen && (!appState.subscription.isPaid || interstitialMode === 'preview')}
-        mode={interstitialMode}
-        ads={appState.ads}
-        shownCount={Math.max(1, interstitialShownCount)}
-        countdownSeconds={5}
-        onClose={() => setInterstitialOpen(false)}
-        onNavigate={handleNavigate}
-        onTrack={trackAdEvent}
-      />
     </>
   );
 }
 
 export default function App() {
+  const [authUser, setAuthUser] = useState<GoogleAuthUser | null>(() => getStoredGoogleUser());
   const [appState, setAppState] = useState<AppStateResponse | null>(null);
   const [adminSession, setAdminSession] = useState<AdminSessionInfo>({
     authenticated: false,
@@ -540,70 +487,94 @@ export default function App() {
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const { isOnline, setIsOnline, recheckConnection } = useOnlineStatus();
 
-  const applyAppState = useCallback((data: AppStateResponse) => {
-    let nextState = data;
-    if (typeof window !== 'undefined') {
-      const savedModel = window.localStorage.getItem('sathi_active_model') as GeminiModelId | null;
-      const isValidSaved =
-        savedModel && data.integrations.availableModels.some((m) => m.id === savedModel);
-      if (
-        isValidSaved &&
-        data.appSettings.aiSettings.allowUserModelSwitch &&
-        savedModel !== data.integrations.geminiModel
-      ) {
+  const applyAppState = useCallback(
+    (data: AppStateResponse, activeGoogleUser?: GoogleAuthUser | null) => {
+      let nextState = data;
+      const effectiveGoogleUser =
+        activeGoogleUser !== undefined ? activeGoogleUser : getStoredGoogleUser();
+
+      if (effectiveGoogleUser) {
         nextState = {
-          ...data,
-          integrations: {
-            ...data.integrations,
-            geminiModel: savedModel,
+          ...nextState,
+          user: {
+            ...nextState.user,
+            id: effectiveGoogleUser.uid || nextState.user.id,
+            name: effectiveGoogleUser.name || nextState.user.name,
+            email: effectiveGoogleUser.email || nextState.user.email,
+            avatarUrl: effectiveGoogleUser.photoURL || nextState.user.avatarUrl,
           },
         };
-        void adminFetch('/api/model', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ modelId: savedModel }),
-        }).catch(() => {});
       }
-    }
 
-    setAppState(nextState);
-    saveOfflineSnapshot(nextState);
-    setTheme(nextState.user.theme || 'light');
-    if (typeof window !== 'undefined') {
-      const savedResp = window.localStorage.getItem('sathi_response_lang');
-      const savedUi = window.localStorage.getItem('sathi_ui_lang');
-      const localPreferred = savedResp
-        ? normalizeLanguageCode(savedResp)
-        : savedUi === 'bn' || savedUi === 'en'
-          ? savedUi
-          : null;
-      if (localPreferred) {
-        setResponseLanguage(localPreferred);
-        if (localPreferred !== nextState.user.preferredLanguage) {
-          void fetch('/api/language', {
+      if (typeof window !== 'undefined') {
+        const savedModel = window.localStorage.getItem('sathi_active_model') as GeminiModelId | null;
+        const isValidSaved =
+          savedModel && nextState.integrations.availableModels.some((m) => m.id === savedModel);
+        if (
+          isValidSaved &&
+          nextState.appSettings.aiSettings.allowUserModelSwitch &&
+          savedModel !== nextState.integrations.geminiModel
+        ) {
+          nextState = {
+            ...nextState,
+            integrations: {
+              ...nextState.integrations,
+              geminiModel: savedModel,
+            },
+          };
+          void adminFetch('/api/model', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ language: localPreferred }),
+            body: JSON.stringify({ modelId: savedModel }),
           }).catch(() => {});
+        }
+      }
+
+      setAppState(nextState);
+      saveOfflineSnapshot(nextState);
+      setTheme(nextState.user.theme || 'light');
+      if (typeof window !== 'undefined') {
+        const savedResp = window.localStorage.getItem('sathi_response_lang');
+        const savedUi = window.localStorage.getItem('sathi_ui_lang');
+        const localPreferred = savedResp
+          ? normalizeLanguageCode(savedResp)
+          : savedUi === 'bn' || savedUi === 'en'
+            ? savedUi
+            : null;
+        if (localPreferred) {
+          setResponseLanguage(localPreferred);
+          if (localPreferred !== nextState.user.preferredLanguage) {
+            void fetch('/api/language', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ language: localPreferred }),
+            }).catch(() => {});
+          }
+        } else {
+          setResponseLanguage(normalizeLanguageCode(nextState.user.preferredLanguage));
         }
       } else {
         setResponseLanguage(normalizeLanguageCode(nextState.user.preferredLanguage));
       }
-    } else {
-      setResponseLanguage(normalizeLanguageCode(nextState.user.preferredLanguage));
-    }
-    setActiveConversationId((prev) => prev ?? nextState.conversations?.[0]?.id ?? null);
-  }, []);
+      setActiveConversationId((prev) => prev ?? nextState.conversations?.[0]?.id ?? null);
+    },
+    []
+  );
 
   const fetchState = useCallback(async () => {
     try {
-      const [stateRes, sessionRes] = await Promise.all([
+      const [stateRes, sessionRes, serverUser] = await Promise.all([
         fetch('/api/state', { credentials: 'same-origin' }),
         adminFetch('/api/auth/session'),
+        fetchServerGoogleSession(),
       ]);
       if (!stateRes.ok) throw new Error('Unable to load data from server.');
       const data = (await stateRes.json()) as AppStateResponse;
-      applyAppState(data);
+      const effectiveUser = serverUser ?? getStoredGoogleUser();
+      if (serverUser) {
+        setAuthUser(serverUser);
+      }
+      applyAppState(data, effectiveUser);
       setIsOnline(true);
       if (sessionRes.ok) {
         const sessionData = (await sessionRes.json()) as AdminSessionInfo;
@@ -615,13 +586,31 @@ export default function App() {
       setLoadError(null);
     } catch {
       const snapshot = loadOfflineSnapshot();
-      applyAppState(snapshot ? snapshot.state : createFallbackOfflineState());
+      const storedUser = getStoredGoogleUser();
+      applyAppState(snapshot ? snapshot.state : createFallbackOfflineState(), storedUser);
       setIsOnline(false);
       setLoadError(null);
     } finally {
       setLoading(false);
     }
   }, [applyAppState, setIsOnline]);
+
+  const handleLoginSuccess = useCallback(
+    (signedInUser: GoogleAuthUser, nextState?: AppStateResponse) => {
+      setAuthUser(signedInUser);
+      if (nextState) {
+        applyAppState(nextState, signedInUser);
+      } else {
+        void fetchState();
+      }
+    },
+    [applyAppState, fetchState]
+  );
+
+  const handleLogout = useCallback(async () => {
+    await logoutGoogleUser();
+    setAuthUser(null);
+  }, []);
 
   useEffect(() => {
     fetchState();
@@ -701,6 +690,9 @@ export default function App() {
   return (
     <UiLanguageProvider defaultLanguage={appState?.appSettings?.defaultLanguage ?? 'en'}>
       <AppInner
+        authUser={authUser}
+        onLoginSuccess={handleLoginSuccess}
+        onLogout={handleLogout}
         appState={appState}
         setAppState={setAppState}
         adminSession={adminSession}

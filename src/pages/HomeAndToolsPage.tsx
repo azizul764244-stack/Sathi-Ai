@@ -200,15 +200,22 @@ export const HomeView: React.FC<HomeViewProps> = ({
     <div className="space-y-8">
       {/* Workspace Utility Row */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            <span>{t(`Welcome, ${user.name}`, `স্বাগতম, ${user.name}`)}</span>
-            <span aria-hidden="true"> · </span>
-            <span>{user.location}</span>
-          </p>
-          <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-            {t('Your All-in-One Sathi AI BD Dashboard', 'Sathi AI BD — আপনার দৈনন্দিন বাংলা এআই ড্যাশবোর্ড')}
-          </h1>
+        <div className="flex items-center gap-3">
+          <img
+            src="/sathi-logo.png"
+            alt="Sathi AI BD"
+            className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl object-cover shadow-md border border-blue-200 dark:border-blue-800 shrink-0"
+          />
+          <div>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              <span>{t(`Welcome, ${user.name}`, `স্বাগতম, ${user.name}`)}</span>
+              <span aria-hidden="true"> · </span>
+              <span>{user.location}</span>
+            </p>
+            <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
+              {t('Your All-in-One Sathi AI BD Dashboard', 'Sathi AI BD — আপনার দৈনন্দিন বাংলা এআই ড্যাশবোর্ড')}
+            </h1>
+          </div>
         </div>
 
         <div className="flex items-center gap-2">
@@ -304,12 +311,12 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
 
         <div className="lg:col-span-5 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col">
-          <div className="relative h-48 lg:h-52 w-full overflow-hidden">
+          <div className="relative h-52 lg:h-56 w-full overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex items-center justify-center p-3">
             <ImageWithFallback
-              src="/src/assets/images/sathi_hero_banner_1795095210678.jpg"
-              alt={t('Sathi AI BD Workspace', 'Sathi AI BD ওয়ার্কস্পেস')}
-              className="w-full h-full object-cover"
-              fallbackTitle={t('Sathi AI BD Workspace', 'Sathi AI BD ওয়ার্কস্পেস')}
+              src="/sathi-logo.png"
+              alt={t('Sathi AI BD — Your Smart AI Partner', 'Sathi AI BD — আপনার স্মার্ট AI সঙ্গী')}
+              className="w-44 h-44 lg:w-48 lg:h-48 rounded-2xl object-cover shadow-xl ring-2 ring-blue-400/30"
+              fallbackTitle="Sathi AI BD"
             />
           </div>
           <div className="p-5 flex-1 flex flex-col justify-between gap-4">
@@ -339,9 +346,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
                 {subscription.isPaid
                   ? subscription.expiresAt
-                    ? `${t('Zero Ads · Pro Active · Expires', 'বিজ্ঞাপনমুক্ত · প্রো সক্রিয় · মেয়াদ')} ${formatDate(subscription.expiresAt)}`
-                    : t('Zero Ads · Pro Plan Active', 'বিজ্ঞাপনমুক্ত · প্রো প্ল্যান সক্রিয়')
-                  : t('Offline Saved Data ON · Pro removes Ads (৳200)', 'অফলাইনে সেভড ডেটা চালু · Pro নিলে বিজ্ঞাপনমুক্ত (৳২০০)')}
+                    ? `${t('Pro Active · Expires', 'প্রো সক্রিয় · মেয়াদ')} ${formatDate(subscription.expiresAt)}`
+                    : t('Pro Plan Active', 'প্রো প্ল্যান সক্রিয়')
+                  : t('Offline Saved Data ON · Pro 200/day (৳200)', 'অফলাইনে সেভড ডেটা চালু · Pro দৈনিক ২০০টি (৳২০০)')}
               </span>
               <button
                 type="button"

@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import type {
@@ -149,16 +150,14 @@ const createDefaultAiFeatures = (): AiFeatureFlags => ({
   videoGenerationEnabled: true,
 });
 
-const REAL_ADSENSE_PUBLISHER_ID = 'ca-pub-9416678178678630';
-
 const createDefaultAdMobConfig = (): AdMobConfig => ({
-  providerMode: 'live_admob',
+  providerMode: 'demo_house',
   testMode: false,
   appId: '',
   bannerUnitId: '',
   entryInterstitialUnitId: '',
   studyInterstitialUnitId: '',
-  adsenseClientId: REAL_ADSENSE_PUBLISHER_ID,
+  adsenseClientId: '',
   adsenseBannerSlot: '',
   adsenseInterstitialSlot: '',
 });
@@ -332,23 +331,23 @@ const createDefaultDb = (): PersistedDatabase => {
       },
     ],
     ads: {
-      networkMode: 'admob_ready',
+      networkMode: 'demo_house',
       admobConfig: createDefaultAdMobConfig(),
-      realAdSenseV3Applied: true,
+      realAdSenseV3Applied: false,
       banner: {
-        enabled: true,
-        title: 'সাথী প্রো আনলক করুন — মাত্র ৳২০০/মাস',
-        subtitle: 'বিজ্ঞাপনমুক্ত অভিজ্ঞতা ও দৈনিক ২০০টি এআই কুয়েরি',
-        ctaText: 'প্ল্যান দেখুন',
+        enabled: false,
+        title: '',
+        subtitle: '',
+        ctaText: '',
         targetPage: 'subscription',
-        sponsorLabel: 'স্পন্সরড বার্তা',
+        sponsorLabel: '',
       },
       interstitial: {
-        enabled: true,
-        maxPerSession: 2,
-        title: 'বিদেশি চাকরির প্রস্তুতি ও সিভি গাইড',
-        description: 'বিনা বাধায় দ্রুত এআই সমাধান ও প্রিমিয়াম টুলস ব্যবহার করতে সাথী প্রো প্ল্যানে আপগ্রেড করতে পারেন।',
-        ctaText: 'সাবস্ক্রিপশন দেখুন',
+        enabled: false,
+        maxPerSession: 0,
+        title: '',
+        description: '',
+        ctaText: '',
         targetPage: 'subscription',
       },
       stats: {
@@ -504,20 +503,19 @@ function ensureDbLoaded(): PersistedDatabase {
     }
   }
 
-  if (!cachedDb.ads.admobConfig) {
+  if (
+    !cachedDb.ads.admobConfig ||
+    cachedDb.ads.realAdSenseV3Applied ||
+    cachedDb.ads.banner.enabled ||
+    cachedDb.ads.interstitial.enabled ||
+    cachedDb.ads.admobConfig.adsenseClientId
+  ) {
     cachedDb.ads.admobConfig = createDefaultAdMobConfig();
-    cachedDb.ads.networkMode = 'admob_ready';
-    cachedDb.ads.realAdSenseV3Applied = true;
-    dirty = true;
-  } else if (!cachedDb.ads.realAdSenseV3Applied) {
-    cachedDb.ads.admobConfig = {
-      ...cachedDb.ads.admobConfig,
-      providerMode: 'live_admob',
-      testMode: false,
-      adsenseClientId: REAL_ADSENSE_PUBLISHER_ID,
-    };
-    cachedDb.ads.networkMode = 'admob_ready';
-    cachedDb.ads.realAdSenseV3Applied = true;
+    cachedDb.ads.networkMode = 'demo_house';
+    cachedDb.ads.realAdSenseV3Applied = false;
+    cachedDb.ads.banner.enabled = false;
+    cachedDb.ads.interstitial.enabled = false;
+    cachedDb.ads.interstitial.maxPerSession = 0;
     dirty = true;
   }
 
@@ -1110,6 +1108,119 @@ export function updateProfile(patch: Partial<UserProfile>): UserProfile {
   ensurePrimaryUserInList(db);
   saveDb(db);
   return db.user;
+}
+
+export function loginOrRegisterGoogleUser(input: {
+  googleId: string;
+  email: string;
+  name: string;
+  avatarUrl: string;
+}): { user: UserProfile; isNewUser: boolean } {
+  const db = ensureDbLoaded();
+  const normalizedEmail = input.email.trim().toLowerCase();
+  const nowIso = new Date().toISOString();
+  const deterministicUid = `usr_g_${crypto
+    .createHash('sha256')
+    .update(input.googleId || normalizedEmail)
+    .digest('hex')
+    .slice(0, 12)}`;
+
+  if (!Array.isArray(db.users)) {
+    db.users = [];
+  }
+
+  let existing = db.users.find(
+    (u) => u.email.trim().toLowerCase() === normalizedEmail || u.id === deterministicUid
+  );
+  let isNewUser = false;
+
+  if (existing) {
+    existing.name = input.name.trim() || existing.name;
+    existing.email = normalizedEmail;
+    existing.lastActiveAt = nowIso;
+    db.user = {
+      ...db.user,
+      id: existing.id,
+      name: existing.name,
+      phone: existing.phone,
+      email: existing.email,
+      avatarUrl: input.avatarUrl || db.user.avatarUrl,
+      location: existing.location,
+    };
+    db.subscription = { ...existing.subscription };
+    db.quota = { ...existing.quota };
+  } else {
+    isNewUser = true;
+    const freePlan = (db.plans ?? createDefaultPlans()).find((p) => p.id === 'free');
+    const initialSub: SubscriptionState = {
+      planId: 'free',
+      planNameBn: freePlan?.nameBn || 'ফ্রি স্টার্টার প্ল্যান',
+      status: 'active',
+      isPaid: false,
+      priceBdt: 0,
+      activatedAt: null,
+      expiresAt: null,
+    };
+    const initialQuota: QuotaState = {
+      usedToday: 0,
+      dailyLimit: freePlan?.dailyLimit ?? 12,
+      monthlyUsed: 0,
+      monthlyLimit: freePlan?.monthlyLimit ?? 150,
+      lastResetDate: todayIsoDate(),
+    };
+    const newRec: RegisteredUserRecord = {
+      id: deterministicUid,
+      name: input.name.trim() || normalizedEmail.split('@')[0],
+      phone: '',
+      email: normalizedEmail,
+      location: 'Bangladesh',
+      status: 'active',
+      role: 'user',
+      subscription: { ...initialSub },
+      quota: { ...initialQuota },
+      totalRequests: 0,
+      createdAt: nowIso,
+      lastActiveAt: nowIso,
+    };
+    db.users.unshift(newRec);
+    db.user = {
+      ...db.user,
+      id: newRec.id,
+      name: newRec.name,
+      phone: newRec.phone,
+      email: newRec.email,
+      avatarUrl: input.avatarUrl || '/sathi-logo.png',
+      location: newRec.location,
+    };
+    db.subscription = { ...initialSub };
+    db.quota = { ...initialQuota };
+  }
+
+  saveDb(db);
+  return { user: db.user, isNewUser };
+}
+
+export function ensureGoogleUserActive(input: {
+  uid: string;
+  email: string;
+  name: string;
+  photoURL: string;
+}): void {
+  const db = ensureDbLoaded();
+  const normalizedEmail = input.email.trim().toLowerCase();
+  if (db.user.email.trim().toLowerCase() === normalizedEmail) {
+    if (input.photoURL && db.user.avatarUrl !== input.photoURL) {
+      db.user.avatarUrl = input.photoURL;
+      saveDb(db);
+    }
+    return;
+  }
+  loginOrRegisterGoogleUser({
+    googleId: input.uid.replace(/^usr_g_/, ''),
+    email: normalizedEmail,
+    name: input.name,
+    avatarUrl: input.photoURL,
+  });
 }
 
 export function submitPaymentRequest(input: {

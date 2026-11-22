@@ -64,6 +64,14 @@ export interface UserProfile {
   theme: 'light' | 'dark';
 }
 
+export interface GoogleAuthUser {
+  uid: string;
+  name: string;
+  email: string;
+  photoURL: string;
+  loggedInAt: string;
+}
+
 export interface SubscriptionState {
   planId: SubscriptionPlanId;
   planNameBn: string;

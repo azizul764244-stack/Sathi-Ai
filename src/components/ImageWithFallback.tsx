@@ -16,6 +16,10 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
 }) => {
   const [failed, setFailed] = useState(false);
 
+  React.useEffect(() => {
+    setFailed(false);
+  }, [src]);
+
   if (failed || !src) {
     return (
       <div

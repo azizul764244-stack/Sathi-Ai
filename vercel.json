@@ -9,7 +9,7 @@
       "destination": "/api/index.ts"
     },
     {
-      "source": "/((?!api/|assets/|src/assets/|ads\\.txt|robots\\.txt|sitemap\\.xml|favicon\\.ico|manifest\\.webmanifest|sw\\.js|icon\\.svg|pwa-.*\\.png|apple-touch-icon\\.png).*)",
+      "source": "/((?!api/|assets/|src/assets/|robots\\.txt|sitemap\\.xml|favicon\\.ico|manifest\\.webmanifest|sw\\.js|icon\\.svg|pwa-.*\\.png|apple-touch-icon\\.png).*)",
       "destination": "/index.html"
     }
   ],
@@ -20,19 +20,6 @@
         {
           "key": "Cache-Control",
           "value": "no-cache, no-store, must-revalidate"
-        }
-      ]
-    },
-    {
-      "source": "/ads.txt",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "text/plain; charset=utf-8"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=3600"
         }
       ]
     }

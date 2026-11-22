@@ -53,7 +53,6 @@ interface NavigationShellProps {
   onSwitchModel: (modelId: GeminiModelId) => Promise<void> | void;
   isOnline?: boolean;
   children: React.ReactNode;
-  bottomBanner?: React.ReactNode;
 }
 
 export const SIDEBAR_NAV_ITEMS: {
@@ -131,7 +130,6 @@ export const NavigationShell: React.FC<NavigationShellProps> = ({
   onSwitchModel,
   isOnline = true,
   children,
-  bottomBanner,
 }) => {
   const { t } = useUiLanguage();
   const remainingToday = Math.max(0, quota.dailyLimit - quota.usedToday);
@@ -172,13 +170,18 @@ export const NavigationShell: React.FC<NavigationShellProps> = ({
       {/* Top Bar with Brand, Navigation, EN/BN Switcher & Pro Button */}
       <header className="sticky top-0 z-30 h-14 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800">
         <div className="max-w-7xl mx-auto h-full px-3 sm:px-4 lg:px-6 flex items-center justify-between gap-3 lg:gap-8">
-          {/* Zone 1: Brand wordmark (also supports 5-tap hidden admin portal entry) */}
+          {/* Zone 1: Brand logo + wordmark (also supports 5-tap hidden admin portal entry) */}
           <button
             type="button"
             onClick={handleBrandClick}
-            className="text-base sm:text-lg font-bold tracking-tight text-blue-800 dark:text-blue-400 whitespace-nowrap shrink-0 font-display focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 rounded-md select-none touch-manipulation py-1 px-1"
+            className="inline-flex items-center gap-2 text-base sm:text-lg font-bold tracking-tight text-blue-800 dark:text-blue-400 whitespace-nowrap shrink-0 font-display focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-600 rounded-md select-none touch-manipulation py-1 px-1"
           >
-            Sathi AI BD
+            <img
+              src="/sathi-logo.png"
+              alt="Sathi AI BD"
+              className="w-8 h-8 rounded-xl object-cover shadow-sm shrink-0"
+            />
+            <span>Sathi AI BD</span>
           </button>
 
           {/* Zone 2: 5 clean single-line navigation links */}
@@ -476,7 +479,6 @@ export const NavigationShell: React.FC<NavigationShellProps> = ({
           )}
 
           {children}
-          {bottomBanner}
           <footer className="mt-8 pt-4 border-t border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500 dark:text-slate-400">
             Sathi AI BD
           </footer>

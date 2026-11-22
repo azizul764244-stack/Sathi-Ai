@@ -30,6 +30,7 @@ import {
   createConversation,
   deleteConversationById,
   deleteHistoryItem,
+  ensureGoogleUserActive,
   getActiveAiModel,
   getAdminDashboardData,
   getAppSettings,
@@ -37,6 +38,7 @@ import {
   getConversations,
   getFullState,
   isValidGeminiModelId,
+  loginOrRegisterGoogleUser,
   recordAdminLog,
   recordApiLog,
   rejectPaymentRequest,
@@ -67,7 +69,24 @@ import {
   verifyGeminiConnection,
 } from './gemini.js';
 import { normalizeLanguageCode } from '../src/constants/languages.js';
-import type { PaymentMethod, ResponseLanguageCode, SubscriptionPlanId } from '../src/types.js';
+import type {
+  GoogleAuthUser,
+  PaymentMethod,
+  ResponseLanguageCode,
+  SubscriptionPlanId,
+} from '../src/types.js';
+import {
+  clearUserSessionCookie,
+  createSignedOAuthState,
+  exchangeGoogleAuthCode,
+  getGoogleOAuthConfig,
+  getUserSessionFromRequest,
+  issueUserSessionCookie,
+  resolveRequestOrigin,
+  verifyGoogleAccessToken,
+  verifySameOriginMutation,
+  verifySignedOAuthState,
+} from './userAuth.js';
 
 dotenv.config();
 
@@ -195,8 +214,227 @@ function resolveRequestedModel(bodyModelId: unknown): string {
 // Public Application State & Language Routes
 // ============================================================
 
-app.get('/api/state', (_req, res) => {
+app.get('/api/state', (req, res) => {
+  const sessionUser = getUserSessionFromRequest(req);
+  if (sessionUser) {
+    ensureGoogleUserActive(sessionUser);
+  }
   res.json(getFullState());
+});
+
+// ============================================================
+// Real Google OAuth / Google Identity Services Auth Routes
+// ============================================================
+
+function escapeHtml(raw: string): string {
+  return raw
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+app.get('/api/auth/google/config', (req, res) => {
+  const cfg = getGoogleOAuthConfig();
+  const origin = resolveRequestOrigin(req);
+  res.json({
+    configured: cfg.configured,
+    clientId: cfg.configured ? cfg.clientId : null,
+    codeFlowReady: cfg.codeFlowReady,
+    redirectUri: `${origin}/api/auth/google/callback`,
+  });
+});
+
+app.get('/api/auth/user/session', (req, res) => {
+  const authUser = getUserSessionFromRequest(req);
+  if (!authUser) {
+    res.json({ authenticated: false, authUser: null });
+    return;
+  }
+  ensureGoogleUserActive(authUser);
+  res.json({ authenticated: true, authUser });
+});
+
+app.post('/api/auth/google/token', async (req, res) => {
+  const cfg = getGoogleOAuthConfig();
+  if (!cfg.configured) {
+    res.status(503).json({
+      error: 'Google OAuth Client ID (GOOGLE_CLIENT_ID) is not configured on the server yet.',
+      code: 'GOOGLE_OAUTH_NOT_CONFIGURED',
+    });
+    return;
+  }
+
+  const accessToken = typeof req.body?.accessToken === 'string' ? req.body.accessToken.trim() : '';
+  if (!accessToken) {
+    res.status(400).json({ error: 'Missing Google access token.' });
+    return;
+  }
+
+  try {
+    const identity = await verifyGoogleAccessToken(accessToken, cfg.clientId);
+    const { user, isNewUser } = loginOrRegisterGoogleUser(identity);
+    const authUser: GoogleAuthUser = {
+      uid: user.id,
+      name: user.name,
+      email: user.email,
+      photoURL: user.avatarUrl,
+      loggedInAt: new Date().toISOString(),
+    };
+    issueUserSessionCookie(req, res, authUser);
+    res.json({
+      ok: true,
+      isNewUser,
+      authUser,
+      state: getFullState(),
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Google sign-in verification failed.';
+    res.status(401).json({ error: message, code: 'GOOGLE_TOKEN_INVALID' });
+  }
+});
+
+app.post('/api/auth/google/demo', (req, res) => {
+  if (!verifySameOriginMutation(req)) {
+    res.status(403).json({ error: 'Invalid request origin.' });
+    return;
+  }
+
+  const demoIdentity = {
+    googleId: 'demo-sathi-user',
+    email: 'sathibd.user@gmail.com',
+    name: 'Sathi Bondhu',
+    avatarUrl: '/sathi-logo.png',
+  };
+
+  const { user, isNewUser } = loginOrRegisterGoogleUser(demoIdentity);
+  const authUser: GoogleAuthUser = {
+    uid: user.id,
+    name: user.name,
+    email: user.email,
+    photoURL: user.avatarUrl || '/sathi-logo.png',
+    loggedInAt: new Date().toISOString(),
+  };
+  issueUserSessionCookie(req, res, authUser);
+  res.json({
+    ok: true,
+    demoMode: true,
+    isNewUser,
+    authUser,
+    state: getFullState(),
+  });
+});
+
+app.get('/api/auth/google/url', (req, res) => {
+  const cfg = getGoogleOAuthConfig();
+  if (!cfg.codeFlowReady) {
+    res.status(503).json({
+      error: 'Google OAuth code flow requires GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET.',
+      code: 'GOOGLE_OAUTH_NOT_CONFIGURED',
+    });
+    return;
+  }
+  const origin = resolveRequestOrigin(req);
+  const redirectUri = `${origin}/api/auth/google/callback`;
+  const state = createSignedOAuthState(origin);
+  const params = new URLSearchParams({
+    client_id: cfg.clientId,
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope: 'openid email profile',
+    prompt: 'select_account',
+    access_type: 'online',
+    state,
+  });
+  res.json({
+    url: `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`,
+    redirectUri,
+  });
+});
+
+app.get(['/api/auth/google/callback', '/api/auth/google/callback/'], async (req, res) => {
+  const cfg = getGoogleOAuthConfig();
+  const rawError = typeof req.query.error === 'string' ? req.query.error : '';
+  if (rawError) {
+    res.status(400).send(
+      `<!doctype html><html><body style="font-family:sans-serif;padding:24px;text-align:center;">
+        <p>Google Sign-In cancelled or failed: ${escapeHtml(rawError)}</p>
+        <script>
+          if (window.opener) {
+            window.opener.postMessage({ type: 'GOOGLE_OAUTH_AUTH_ERROR', error: ${JSON.stringify(rawError).replace(/</g, '\\u003c')} }, '*');
+            window.close();
+          }
+        </script>
+      </body></html>`
+    );
+    return;
+  }
+
+  const code = typeof req.query.code === 'string' ? req.query.code : '';
+  const state = typeof req.query.state === 'string' ? req.query.state : '';
+  const verifiedState = verifySignedOAuthState(state);
+
+  if (!cfg.codeFlowReady || !code || !verifiedState) {
+    res.status(400).send(
+      `<!doctype html><html><body style="font-family:sans-serif;padding:24px;text-align:center;">
+        <p>Invalid or expired Google Sign-In state. Please try again.</p>
+      </body></html>`
+    );
+    return;
+  }
+
+  try {
+    const redirectUri = `${verifiedState.origin}/api/auth/google/callback`;
+    const identity = await exchangeGoogleAuthCode(code, redirectUri, cfg.clientId, cfg.clientSecret);
+    const { user, isNewUser } = loginOrRegisterGoogleUser(identity);
+    const authUser: GoogleAuthUser = {
+      uid: user.id,
+      name: user.name,
+      email: user.email,
+      photoURL: user.avatarUrl,
+      loggedInAt: new Date().toISOString(),
+    };
+    issueUserSessionCookie(req, res, authUser);
+
+    const payloadJson = JSON.stringify({
+      type: 'GOOGLE_OAUTH_AUTH_SUCCESS',
+      authUser,
+      isNewUser,
+    }).replace(/</g, '\\u003c');
+
+    res.send(`<!doctype html>
+      <html>
+        <head><title>Signing in to Sathi AI BD...</title></head>
+        <body style="font-family:sans-serif;padding:24px;text-align:center;color:#0f172a;">
+          <p>Authentication successful. Returning to Sathi AI BD...</p>
+          <script>
+            if (window.opener) {
+              window.opener.postMessage(${payloadJson}, '*');
+              window.close();
+            } else {
+              window.location.replace('/');
+            }
+          </script>
+        </body>
+      </html>`);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Authentication failed.';
+    res.status(401).send(
+      `<!doctype html><html><body style="font-family:sans-serif;padding:24px;text-align:center;">
+        <p>${escapeHtml(msg)}</p>
+      </body></html>`
+    );
+  }
+});
+
+app.post('/api/auth/user/logout', (req, res) => {
+  if (!verifySameOriginMutation(req)) {
+    res.status(403).json({ error: 'Invalid request origin.' });
+    return;
+  }
+  clearUserSessionCookie(req, res);
+  res.json({ ok: true });
 });
 
 app.get('/api/gemini/health', async (_req, res) => {
