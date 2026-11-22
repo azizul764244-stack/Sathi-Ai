@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import {
   ArrowRight,
+  BookOpen,
+  BookOpenCheck,
   Briefcase,
   Crown,
   Film,
@@ -11,10 +13,10 @@ import {
   Megaphone,
   MessageSquareText,
   Moon,
+  MoonStar,
   Search,
   Sun,
 } from 'lucide-react';
-import { ImageWithFallback } from '../components/ImageWithFallback';
 import { PWAInstallButton } from '../components/PWAInstallButton';
 import { useUiLanguage } from '../contexts/UiLanguageContext';
 import type {
@@ -64,17 +66,81 @@ export const TOOL_DIRECTORY: ToolDirectoryItem[] = [
     id: 'education',
     page: 'education',
     featureKey: 'educationEnabled',
-    titleEn: 'SSC / HSC Education AI',
-    titleBn: 'শিক্ষা AI (SSC / HSC)',
-    subtitleEn: 'Step-by-step Math, Physics, Chemistry, Biology, ICT, Bangla & English Grammar',
-    subtitleBn: 'SSC/HSC গণিত, বিজ্ঞান, আইসিটি ও ইংরেজি গ্রামারের ধাপে ধাপে সমাধান',
+    titleEn: 'School (Class 6 to HSC)',
+    titleBn: 'স্কুল',
+    subtitleEn: 'Only Class 6 to HSC',
+    subtitleBn: 'শুধু ক্লাস ৬ থেকে HSC',
     categoryKey: 'edu_career',
     categoryEn: 'Education & Career',
     categoryBn: 'শিক্ষা ও ক্যারিয়ার',
     icon: GraduationCap,
-    accentClass: 'bg-blue-50 text-blue-700 dark:bg-blue-950/70 dark:text-blue-300',
-    noteEn: 'Step-by-Step + Photo Solve',
-    noteBn: 'প্রশ্ন ও ছবি বিশ্লেষণ',
+    accentClass: 'bg-sky-50 text-sky-600 dark:bg-sky-950/70 dark:text-sky-300',
+    noteEn: 'Class 6 – HSC',
+    noteBn: 'ক্লাস ৬ থেকে HSC',
+  },
+  {
+    id: 'study_tools',
+    page: 'study_tools',
+    featureKey: 'educationEnabled',
+    titleEn: 'Study Tools (6 Tools)',
+    titleBn: 'পড়াশোনা টুলস',
+    subtitleEn: 'Photo Math, SSC/HSC Suggestions, Model Test, Note Maker + PDF, Voice Q&A, Simple Bangla',
+    subtitleBn: 'ছবি তুলে অংক, SSC/HSC সাজেশন, মডেল টেস্ট, নোট মেকার + PDF, ভয়েস প্রশ্ন, সহজ বাংলা',
+    categoryKey: 'edu_career',
+    categoryEn: 'Education & Career',
+    categoryBn: 'শিক্ষা ও ক্যারিয়ার',
+    icon: BookOpenCheck,
+    accentClass: 'bg-purple-50 text-purple-700 dark:bg-purple-950/70 dark:text-purple-300',
+    noteEn: '6 Study Tools',
+    noteBn: '৬টি পড়াশোনা টুলস',
+  },
+  {
+    id: 'qawmi',
+    page: 'qawmi',
+    featureKey: 'educationEnabled',
+    titleEn: 'Qawmi Madrasah (Nurani to Dawra)',
+    titleBn: 'কওমি মাদ্রাসা (নূরানী – দাওরায়ে হাদিস)',
+    subtitleEn: 'All classes from Nurani & Hifz to Dawra-e-Hadith with Kitabs, tests & notes',
+    subtitleBn: 'নূরানী থেকে দাওরায়ে হাদিস পর্যন্ত সব ক্লাসের বই, সাজেশন, মডেল টেস্ট ও নোট',
+    categoryKey: 'edu_career',
+    categoryEn: 'Education & Career',
+    categoryBn: 'শিক্ষা ও ক্যারিয়ার',
+    icon: BookOpen,
+    accentClass: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/70 dark:text-emerald-300',
+    noteEn: 'All Qawmi Classes',
+    noteBn: 'সব ক্লাস সহজ বাংলায়',
+  },
+  {
+    id: 'alia',
+    page: 'alia',
+    featureKey: 'educationEnabled',
+    titleEn: 'Alia Madrasah (Ebtedayi to Kamil)',
+    titleBn: 'আলিয়া মাদ্রাসা (ইবতেদায়ী – কামিল)',
+    subtitleEn: 'Ebtedayi, Dakhil, Alim, Fazil & Kamil books, suggestions, model tests & notes',
+    subtitleBn: 'ইবতেদায়ী থেকে কামিল পর্যন্ত সব ক্লাসের বই, সাজেশন, মডেল টেস্ট ও নোট',
+    categoryKey: 'edu_career',
+    categoryEn: 'Education & Career',
+    categoryBn: 'শিক্ষা ও ক্যারিয়ার',
+    icon: BookOpen,
+    accentClass: 'bg-teal-50 text-teal-700 dark:bg-teal-950/70 dark:text-teal-300',
+    noteEn: 'Ebtedayi to Kamil',
+    noteBn: 'বোর্ড সিলেবাস ও নোট',
+  },
+  {
+    id: 'islamic',
+    page: 'islamic',
+    featureKey: 'educationEnabled',
+    titleEn: 'Islam & Hafez Hub',
+    titleBn: 'ইসলাম ও হাফেজ',
+    subtitleEn: 'Hafez 30-para tracker, Quran Tafsir, Sahih Hadith, Masnoon Dua & Prayer Times',
+    subtitleBn: 'হাফেজ ট্র্যাকার, কোরআন তাফসীর, হাদিস, দোয়া ও নামাজের সময়',
+    categoryKey: 'edu_career',
+    categoryEn: 'Education & Career',
+    categoryBn: 'শিক্ষা ও ক্যারিয়ার',
+    icon: MoonStar,
+    accentClass: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950/70 dark:text-indigo-300',
+    noteEn: 'Tafsir · Hadith · Prayer Times',
+    noteBn: 'তাফসীর · হাদিস · নামাজ',
   },
   {
     id: 'photo',
@@ -164,8 +230,17 @@ interface HomeViewProps {
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
   onNavigate: (page: AppPage) => void;
-  onQuickEducationAsk: (question: string) => void;
+  onQuickEducationAsk?: (question: string) => void;
 }
+
+const PRIMARY_HOME_IDS = new Set([
+  'assistant',
+  'education',
+  'study_tools',
+  'qawmi',
+  'alia',
+  'islamic',
+]);
 
 export const HomeView: React.FC<HomeViewProps> = ({
   user,
@@ -176,10 +251,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
   theme,
   onToggleTheme,
   onNavigate,
-  onQuickEducationAsk,
 }) => {
   const { uiLang, t, formatDate } = useUiLanguage();
-  const [quickPrompt, setQuickPrompt] = useState('');
   const remainingToday = Math.max(0, quota.dailyLimit - quota.usedToday);
 
   const isFeatureEnabled = (key?: keyof AiFeatureFlags) => {
@@ -187,18 +260,76 @@ export const HomeView: React.FC<HomeViewProps> = ({
     return aiFeatures[key] !== false;
   };
 
-  const handleQuickSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!quickPrompt.trim()) {
-      onNavigate('education');
-      return;
-    }
-    onQuickEducationAsk(quickPrompt.trim());
-  };
+  const secondaryTools = TOOL_DIRECTORY.filter((tool) => !PRIMARY_HOME_IDS.has(tool.id));
+
+  const primaryCards: {
+    id: string;
+    page: AppPage;
+    title: string;
+    subtitle: string;
+    gradient: string;
+    arrowClass: string;
+    icon: React.FC<{ className?: string }>;
+  }[] = [
+    {
+      id: 'assistant',
+      page: 'assistant',
+      title: '১. এআই চ্যাট সহকারী',
+      subtitle: 'গল্প, কবিতা, CV, চাকরির প্রশ্নোত্তর, ভয়েস ও ছবি দিয়ে যেকোনো কথা বলুন',
+      gradient: 'bg-gradient-to-r from-blue-700 to-blue-800 text-white',
+      arrowClass: 'text-blue-200',
+      icon: MessageSquareText,
+    },
+    {
+      id: 'education',
+      page: 'education',
+      title: '২. স্কুল',
+      subtitle: 'শুধু ক্লাস ৬ থেকে HSC',
+      gradient: 'bg-gradient-to-r from-sky-500 to-blue-500 text-white',
+      arrowClass: 'text-sky-100',
+      icon: GraduationCap,
+    },
+    {
+      id: 'study_tools',
+      page: 'study_tools',
+      title: '৩. পড়াশোনা টুলস',
+      subtitle: 'ছবি তুলে অংক, SSC/HSC সাজেশন, মডেল টেস্ট, নোট মেকার + PDF, ভয়েস প্রশ্ন, সহজ বাংলা',
+      gradient: 'bg-gradient-to-r from-purple-600 to-violet-700 text-white',
+      arrowClass: 'text-purple-200',
+      icon: BookOpenCheck,
+    },
+    {
+      id: 'qawmi',
+      page: 'qawmi',
+      title: '৪. কওমি মাদ্রাসা',
+      subtitle: 'নূরানী থেকে দাওরায়ে হাদিস',
+      gradient: 'bg-gradient-to-r from-emerald-600 to-green-700 text-white',
+      arrowClass: 'text-emerald-200',
+      icon: BookOpen,
+    },
+    {
+      id: 'alia',
+      page: 'alia',
+      title: '৫. আলিয়া মাদ্রাসা',
+      subtitle: 'ইবতেদায়ী থেকে কামিল',
+      gradient: 'bg-gradient-to-r from-teal-500 to-cyan-600 text-white',
+      arrowClass: 'text-teal-100',
+      icon: BookOpen,
+    },
+    {
+      id: 'islamic',
+      page: 'islamic',
+      title: '৬. ইসলাম ও হাফেজ',
+      subtitle: 'হাফেজ ট্র্যাকার, কোরআন, হাদিস, দোয়া, নামাজের সময়',
+      gradient: 'bg-gradient-to-r from-indigo-900 to-purple-950 text-white',
+      arrowClass: 'text-indigo-200',
+      icon: MoonStar,
+    },
+  ];
 
   return (
-    <div className="space-y-8">
-      {/* Workspace Utility Row */}
+    <div className="space-y-6">
+      {/* Workspace Utility Row (Logo untouched) */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <img
@@ -213,7 +344,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
               <span>{user.location}</span>
             </p>
             <h1 className="text-xl sm:text-3xl font-bold tracking-tight text-slate-900 dark:text-white">
-              {t('Your All-in-One Sathi AI BD Dashboard', 'Sathi AI BD — আপনার দৈনন্দিন বাংলা এআই ড্যাশবোর্ড')}
+              {t('Sathi AI BD Dashboard', 'Sathi AI BD — আপনার দৈনন্দিন বাংলা এআই')}
             </h1>
           </div>
         </div>
@@ -236,141 +367,76 @@ export const HomeView: React.FC<HomeViewProps> = ({
         </div>
       </div>
 
-      {/* Hero Split Section */}
-      <section className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
-        <div className="lg:col-span-7 rounded-3xl bg-gradient-to-br from-blue-900 via-blue-800 to-slate-900 text-white p-6 sm:p-8 flex flex-col justify-between">
+      {/* 6 Main Stacked One-Per-Line Color-Coded Buttons */}
+      <section aria-label="প্রধান সেবাসমূহ" className="flex flex-col gap-3">
+        {primaryCards.map((card) => {
+          const Icon = card.icon;
+          return (
+            <button
+              key={card.id}
+              type="button"
+              onClick={() => onNavigate(card.page)}
+              className={`w-full text-left p-4 sm:p-5 rounded-2xl shadow-md hover:shadow-lg hover:scale-[1.005] transition-all flex items-center justify-between gap-4 ${card.gradient}`}
+            >
+              <div className="flex items-center gap-3.5 min-w-0">
+                <div className="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+                  <Icon className="w-6 h-6 text-white" />
+                </div>
+                <div className="min-w-0">
+                  <h2 className="text-base sm:text-lg font-bold leading-snug">{card.title}</h2>
+                  <p className="text-xs sm:text-sm text-white/90 mt-0.5 leading-relaxed">
+                    {card.subtitle}
+                  </p>
+                </div>
+              </div>
+              <ArrowRight className={`w-5 h-5 shrink-0 ${card.arrowClass}`} />
+            </button>
+          );
+        })}
+      </section>
+
+      {/* Compact Quota & Plan Summary */}
+      <section className="rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-4">
+        <div className="flex flex-wrap items-center gap-6">
           <div>
-            <p className="text-xs font-medium text-blue-200 mb-2">
-              {t(
-                'SSC/HSC Education · General AI Chat · AI Image & Flow Video · Global Jobs',
-                'শিক্ষা · জেনারেল চ্যাট · ইমেজ ও Flow ভিডিও · বিদেশে চাকরি'
-              )}
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {t('Remaining Daily Quota', 'আজকের অবশিষ্ট কোটা')}
             </p>
-            <h2 className="text-2xl sm:text-3xl font-bold leading-snug mb-3">
-              {t(
-                'Complete AI Assistant for Study, Career, Images & Short Videos',
-                'এক অ্যাপেই পড়াশোনা, বৈধ চাকরির তথ্য ও কনটেন্ট তৈরির পূর্ণ সমাধান'
-              )}
-            </h2>
-            <p className="text-sm text-blue-100 leading-relaxed max-w-xl mb-6">
-              {t(
-                'Solve SSC/HSC math & grammar step by step, write CVs or stories, generate AI images & Flow videos, or switch instantly between English and Bengali.',
-                'সহজ বাংলা ও ইংরেজিতে পড়াশোনা সমাধান করুন, CV বা গল্প লিখুন, এআই ছবি ও ছোট ভিডিও বানান এবং যেকোনো সময় ভাষা বদলান।'
-              )}
+            <p className="text-xl font-bold text-slate-900 dark:text-white font-mono tabular-nums">
+              {remainingToday}{' '}
+              <span className="text-xs font-normal text-slate-500">/ {quota.dailyLimit}</span>
             </p>
           </div>
-
-          <div className="space-y-3">
-            <form onSubmit={handleQuickSubmit} className="flex flex-col sm:flex-row gap-2.5">
-              <input
-                type="text"
-                value={quickPrompt}
-                onChange={(e) => setQuickPrompt(e.target.value)}
-                placeholder={t(
-                  'Ask any SSC/HSC study question (e.g., Explain Newton’s 2nd Law)...',
-                  'যেকোনো পড়াশোনার প্রশ্ন লিখুন (যেমন: নিউটনের ২য় সূত্র ব্যাখ্যা করো)...'
-                )}
-                className="flex-1 min-h-[48px] px-4 rounded-xl bg-white/15 border border-white/25 text-sm text-white placeholder:text-blue-200 focus:outline-none focus:ring-2 focus:ring-white/60"
-              />
-              <button
-                type="submit"
-                className="min-h-[48px] px-5 rounded-xl bg-white text-blue-900 hover:bg-blue-50 text-sm font-bold inline-flex items-center justify-center gap-2 whitespace-nowrap shrink-0 transition-colors"
-              >
-                <span>{t('Solve Now', 'সমাধান নিন')}</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
-
-            <div className="flex flex-wrap items-center gap-2.5 pt-1">
-              <button
-                type="button"
-                onClick={() => onNavigate('assistant')}
-                className="min-h-[42px] px-4 rounded-xl bg-white/15 hover:bg-white/25 border border-white/25 text-white text-xs font-semibold inline-flex items-center gap-2 transition-colors"
-              >
-                <MessageSquareText className="w-4 h-4" />
-                <span>{t('Open General AI Chat (Stories, CV, Voice)', 'জেনারেল এআই চ্যাট খুলুন')}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onNavigate('photo')}
-                className="min-h-[42px] px-4 rounded-xl bg-white/15 hover:bg-white/25 border border-white/25 text-white text-xs font-semibold inline-flex items-center gap-2 transition-colors"
-              >
-                <ImageIcon className="w-4 h-4" />
-                <span>{t('AI Image Generator', 'এআই ছবি বানান')}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => onNavigate('video')}
-                className="min-h-[42px] px-4 rounded-xl bg-white/15 hover:bg-white/25 border border-white/25 text-white text-xs font-semibold inline-flex items-center gap-2 transition-colors"
-              >
-                <Film className="w-4 h-4" />
-                <span>{t('Flow AI Video', 'ভিডিও বানান')}</span>
-              </button>
-            </div>
+          <div>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {t('Current Plan', 'বর্তমান প্ল্যান')}
+            </p>
+            <p className="text-sm font-semibold text-blue-700 dark:text-blue-400 mt-0.5">
+              {subscription.isPaid
+                ? subscription.planNameBn
+                : t('Free Plan', subscription.planNameBn)}
+            </p>
           </div>
         </div>
 
-        <div className="lg:col-span-5 rounded-3xl overflow-hidden border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 flex flex-col">
-          <div className="relative h-52 lg:h-56 w-full overflow-hidden bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex items-center justify-center p-3">
-            <ImageWithFallback
-              src="/sathi-logo.png"
-              alt={t('Sathi AI BD — Your Smart AI Partner', 'Sathi AI BD — আপনার স্মার্ট AI সঙ্গী')}
-              className="w-44 h-44 lg:w-48 lg:h-48 rounded-2xl object-cover shadow-xl ring-2 ring-blue-400/30"
-              fallbackTitle="Sathi AI BD"
-            />
-          </div>
-          <div className="p-5 flex-1 flex flex-col justify-between gap-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {t('Remaining Daily Quota', 'আজকের অবশিষ্ট কোটা')}
-                </p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-white font-mono tabular-nums mt-0.5">
-                  {remainingToday}{' '}
-                  <span className="text-sm font-normal text-slate-500">/ {quota.dailyLimit}</span>
-                </p>
-              </div>
-              <div>
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  {t('Current Plan', 'বর্তমান প্ল্যান')}
-                </p>
-                <p className="text-sm font-semibold text-blue-700 dark:text-blue-400 mt-1.5 truncate">
-                  {subscription.isPaid
-                    ? subscription.planNameBn
-                    : t('Free Plan', subscription.planNameBn)}
-                </p>
-              </div>
-            </div>
-
-            <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2">
-              <span className="text-xs text-slate-500 dark:text-slate-400 tabular-nums">
-                {subscription.isPaid
-                  ? subscription.expiresAt
-                    ? `${t('Pro Active · Expires', 'প্রো সক্রিয় · মেয়াদ')} ${formatDate(subscription.expiresAt)}`
-                    : t('Pro Plan Active', 'প্রো প্ল্যান সক্রিয়')
-                  : t('Offline Saved Data ON · Pro 200/day (৳200)', 'অফলাইনে সেভড ডেটা চালু · Pro দৈনিক ২০০টি (৳২০০)')}
-              </span>
-              <button
-                type="button"
-                onClick={() => onNavigate('subscription')}
-                className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 dark:text-blue-400 hover:underline min-h-[40px]"
-              >
-                <Crown className="w-4 h-4" />
-                <span>{t('Manage Plan', 'প্ল্যান পরিচালনা')}</span>
-              </button>
-            </div>
-          </div>
-        </div>
+        <button
+          type="button"
+          onClick={() => onNavigate('subscription')}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-700 dark:text-blue-400 hover:underline min-h-[40px]"
+        >
+          <Crown className="w-4 h-4" />
+          <span>{t('Manage Plan', 'প্ল্যান পরিচালনা')}</span>
+        </button>
       </section>
 
       {/* Chrome PWA Install Card */}
       <PWAInstallButton variant="card" />
 
-      {/* Main Features Grid */}
-      <section>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg sm:text-xl font-bold text-slate-900 dark:text-white">
-            {t('Core AI Services & Studios', 'প্রধান এআই সেবাসমূহ')}
+      {/* Other Unique Services (No Duplicates from Above) */}
+      <section className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+            {t('More AI Studios & Guides', 'অন্যান্য এআই সেবা')}
           </h2>
           <button
             type="button"
@@ -382,8 +448,8 @@ export const HomeView: React.FC<HomeViewProps> = ({
           </button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-          {TOOL_DIRECTORY.map((tool) => {
+        <div className="flex flex-col gap-3">
+          {secondaryTools.map((tool) => {
             const Icon = tool.icon;
             const enabled = isFeatureEnabled(tool.featureKey);
             return (
@@ -391,37 +457,28 @@ export const HomeView: React.FC<HomeViewProps> = ({
                 key={tool.id}
                 type="button"
                 onClick={() => onNavigate(tool.page)}
-                className="text-left p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-600 transition-colors flex flex-col justify-between gap-4 min-h-[144px]"
+                className="w-full text-left p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-400 dark:hover:border-blue-600 transition-colors flex items-center justify-between gap-4"
               >
-                <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3.5 min-w-0">
                   <div
                     className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${tool.accentClass}`}
                   >
                     <Icon className="w-5 h-5" />
                   </div>
-                  <span
-                    className={`text-[11px] font-medium ${
-                      enabled
-                        ? 'text-slate-500 dark:text-slate-400'
-                        : 'text-rose-600 dark:text-rose-400'
-                    }`}
-                  >
-                    {enabled
-                      ? uiLang === 'bn'
-                        ? tool.noteBn
-                        : tool.noteEn
-                      : t('Disabled by Admin', 'অ্যাডমিন বন্ধ রেখেছেন')}
-                  </span>
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-bold text-slate-900 dark:text-white">
+                      {uiLang === 'bn' ? tool.titleBn : tool.titleEn}
+                    </h3>
+                    <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5 leading-relaxed">
+                      {enabled
+                        ? uiLang === 'bn'
+                          ? tool.subtitleBn
+                          : tool.subtitleEn
+                        : t('Disabled by Admin', 'অ্যাডমিন বন্ধ রেখেছেন')}
+                    </p>
+                  </div>
                 </div>
-
-                <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white mb-1">
-                    {uiLang === 'bn' ? tool.titleBn : tool.titleEn}
-                  </h3>
-                  <p className="text-xs text-slate-600 dark:text-slate-400 leading-relaxed">
-                    {uiLang === 'bn' ? tool.subtitleBn : tool.subtitleEn}
-                  </p>
-                </div>
+                <ArrowRight className="w-4 h-4 text-slate-400 shrink-0" />
               </button>
             );
           })}

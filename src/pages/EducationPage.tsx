@@ -3,16 +3,15 @@ import {
   BookOpen,
   ChevronDown,
   ChevronUp,
-  ImagePlus,
   Loader2,
   Lock,
   Send,
-  Trash2,
+  Sparkles,
   WifiOff,
 } from 'lucide-react';
 import { AiErrorBanner } from '../components/AiErrorBanner';
 import { RichAnswer } from '../components/RichAnswer';
-import { VoiceInputButton } from '../components/VoiceControls';
+import { SCHOOL_CLASSES } from '../data/educationCatalog';
 import { useUiLanguage } from '../contexts/UiLanguageContext';
 import { AiClientError, streamAiSse } from '../utils/api';
 import type {
@@ -91,9 +90,6 @@ export const EducationPage: React.FC<EducationPageProps> = ({
   const [subject, setSubject] = useState(SUBJECTS[0].id);
   const [level, setLevel] = useState(LEVELS[0].id);
   const [question, setQuestion] = useState(initialQuestion || '');
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageBase64, setImageBase64] = useState<string | undefined>(undefined);
-  const [imageMimeType, setImageMimeType] = useState<string | undefined>(undefined);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [errorCode, setErrorCode] = useState<AiErrorCode | undefined>(undefined);
@@ -132,21 +128,6 @@ export const EducationPage: React.FC<EducationPageProps> = ({
     );
   }
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = String(reader.result || '');
-      setImagePreview(dataUrl);
-      const [meta, base64] = dataUrl.split(',');
-      const mimeMatch = meta.match(/data:(.*);base64/);
-      setImageMimeType(mimeMatch ? mimeMatch[1] : file.type);
-      setImageBase64(base64);
-    };
-    reader.readAsDataURL(file);
-  };
-
   const executeSolve = async () => {
     if (inFlightRef.current) return;
     if (!isOnline) {
@@ -158,11 +139,11 @@ export const EducationPage: React.FC<EducationPageProps> = ({
       );
       return;
     }
-    if (!question.trim() && !imageBase64) {
+    if (!question.trim()) {
       setError(
         t(
-          'Please enter a study question or upload a photo of your textbook/notebook.',
-          'অনুগ্রহ করে একটি প্রশ্ন লিখুন অথবা বই/খাতার ছবি আপলোড করুন।'
+          'Please enter a study question.',
+          'অনুগ্রহ করে আপনার শ্রেণি ও বিষয় সম্পর্কিত একটি প্রশ্ন লিখুন।'
         )
       );
       setErrorCode(undefined);
@@ -185,8 +166,6 @@ export const EducationPage: React.FC<EducationPageProps> = ({
           subject,
           level,
           question,
-          imageBase64,
-          imageMimeType,
           responseLanguage,
           modelId: activeModel,
         },
@@ -222,17 +201,155 @@ export const EducationPage: React.FC<EducationPageProps> = ({
   };
 
   const activeSubjectObj = SUBJECTS.find((s) => s.id === subject) ?? SUBJECTS[0];
+  const activeSchoolCurriculum =
+    SCHOOL_CLASSES.find((c) => c.id === level) ?? SCHOOL_CLASSES[0];
+
+  const triggerKitAiPrompt = async (promptText: string, modeLabel: string) => {
+    if (inFlightRef.current) return;
+    setQuestion(promptText);
+    if (!isOnline) {
+      setError('এই মুহূর্তে ইন্টারনেট নেই। তবে প্রতিটা ক্লাসের বই, সাজেশন, মডেল টেস্ট ও সেভড নোট অফলাইনে পড়তে পারবেন।');
+      return;
+    }
+    inFlightRef.current = true;
+    setLoading(true);
+    onBusyChange(true);
+    setError(null);
+    setErrorCode(undefined);
+    setRetryAfterSec(undefined);
+    setAnswer('');
+    try {
+      await streamAiSse<{ answer: string; historyItem: HistoryItem; quota: QuotaState }>(
+        '/api/ai/education',
+        {
+          subject: `স্কুল (${modeLabel}) — ${subject}`,
+          level,
+          question: promptText,
+          responseLanguage: responseLanguage === 'en' ? 'bn' : responseLanguage,
+          modelId: activeModel,
+        },
+        {
+          onDelta: (chunk) => setAnswer((prev) => (prev ?? '') + chunk),
+          onDone: (data) => {
+            setAnswer(data.answer);
+            onResultSuccess(data.historyItem, data.quota);
+          },
+        }
+      );
+    } catch (err) {
+      if (err instanceof AiClientError) {
+        setError(err.message);
+        setErrorCode(err.errorCode);
+        setRetryAfterSec(err.retryAfterSec);
+      } else {
+        setError(err instanceof Error ? err.message : 'উত্তর তৈরি করা যায়নি।');
+      }
+      setAnswer(null);
+    } finally {
+      inFlightRef.current = false;
+      setLoading(false);
+      onBusyChange(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-xs text-slate-500 dark:text-slate-400">
-            {t('Education AI · SSC / HSC Step-by-Step Tutor', 'শিক্ষা AI · SSC / HSC ধাপে ধাপে ব্যাখ্যা')}
+            {t('School · Only Class 6 to HSC', 'স্কুল · শুধু ক্লাস ৬ থেকে HSC')}
           </p>
           <h1 className="text-2xl font-bold text-slate-900 dark:text-white">
-            {t('SSC / HSC Study & Question Solver', 'SSC / HSC পড়াশোনার প্রশ্ন সমাধান')}
+            {t('School (Class 6 to HSC)', 'স্কুল — শুধু ক্লাস ৬ থেকে HSC')}
           </h1>
+        </div>
+      </div>
+
+      {/* Quick Class Tabs */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        {SCHOOL_CLASSES.map((cls) => {
+          const active = cls.id === level;
+          return (
+            <button
+              key={cls.id}
+              type="button"
+              onClick={() => setLevel(cls.id)}
+              className={`p-3 rounded-xl border text-left transition-colors ${
+                active
+                  ? 'bg-sky-600 text-white border-sky-600 shadow-sm'
+                  : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:border-sky-500'
+              }`}
+            >
+              <span
+                className={`block text-[10px] font-semibold ${
+                  active ? 'text-sky-100' : 'text-sky-700 dark:text-sky-400'
+                }`}
+              >
+                {cls.badgeBn}
+              </span>
+              <span className="text-xs sm:text-sm font-bold block">{cls.nameBn}</span>
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Selected Class Books & Chapters Only */}
+      <div className="rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 sm:p-5 space-y-3">
+        <div>
+          <span className="text-[11px] font-semibold text-sky-700 dark:text-sky-400">
+            {activeSchoolCurriculum.badgeBn}
+          </span>
+          <h2 className="text-base sm:text-lg font-bold text-slate-900 dark:text-white">
+            {activeSchoolCurriculum.nameBn} — পাঠ্যবই ও অধ্যায়সমূহ
+          </h2>
+        </div>
+
+        <div className="space-y-3">
+          {activeSchoolCurriculum.books.map((book) => (
+            <div
+              key={book.title}
+              className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2.5"
+            >
+              <div className="flex flex-wrap items-start justify-between gap-2">
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 dark:text-white">{book.title}</h3>
+                  <p className="text-xs text-slate-600 dark:text-slate-300 mt-0.5">{book.summary}</p>
+                </div>
+                <button
+                  type="button"
+                  disabled={loading}
+                  onClick={() =>
+                    void triggerKitAiPrompt(
+                      `${activeSchoolCurriculum.nameBn} শ্রেণির "${book.title}" বইটির মূল বিষয় ও গুরুত্বপূর্ণ অধ্যায়গুলো সহজ বাংলায় বুঝিয়ে দাও।`,
+                      'বই ও অধ্যায়'
+                    )
+                  }
+                  className="px-3 py-1.5 min-h-[36px] rounded-lg bg-sky-600 hover:bg-sky-700 text-white text-xs font-semibold inline-flex items-center gap-1.5 shrink-0 disabled:opacity-60"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>অধ্যায় বুঝিয়ে দাও</span>
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {book.chapters.map((ch) => (
+                  <button
+                    key={ch}
+                    type="button"
+                    disabled={loading}
+                    onClick={() =>
+                      void triggerKitAiPrompt(
+                        `${activeSchoolCurriculum.nameBn} — "${book.title}" বইয়ের "${ch}" অধ্যায়টি সহজ বাংলায় উদাহরণসহ বুঝিয়ে দাও।`,
+                        ch
+                      )
+                    }
+                    className="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-[11px] font-medium text-slate-700 dark:text-slate-200 hover:border-sky-500 transition-colors"
+                  >
+                    {ch}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -293,27 +410,9 @@ export const EducationPage: React.FC<EducationPageProps> = ({
         </div>
 
         <div>
-          <div className="flex items-center justify-between gap-2 mb-1.5">
-            <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
-              {t('Enter Your Question', 'আপনার প্রশ্নটি লিখুন')}
-            </label>
-            <VoiceInputButton
-              language={responseLanguage}
-              onTranscript={(text) =>
-                setQuestion((prev) => (prev.trim() ? `${prev.trim()} ${text}` : text))
-              }
-              onError={(err) => {
-                if (typeof err === 'string') {
-                  setError(err);
-                } else {
-                  setError(err.message);
-                  setErrorCode(err.errorCode);
-                }
-              }}
-              disabled={loading || !isOnline}
-              compact
-            />
-          </div>
+          <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
+            {t('Enter Your Class Question', 'আপনার ক্লাস ও বিষয় সম্পর্কিত প্রশ্ন লিখুন')}
+          </label>
           <textarea
             rows={4}
             value={question}
@@ -322,7 +421,7 @@ export const EducationPage: React.FC<EducationPageProps> = ({
               'e.g., A right triangle has hypotenuse 10 cm and base 6 cm. Find the height.',
               'যেমন: একটি সমকোণী ত্রিভুজের অতিভুজ ১০ সেমি এবং ভূমি ৬ সেমি হলে লম্ব কত?'
             )}
-            className="w-full p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+            className="w-full p-3.5 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-sm focus:outline-none focus:ring-2 focus:ring-sky-600"
           />
         </div>
 
@@ -337,7 +436,7 @@ export const EducationPage: React.FC<EducationPageProps> = ({
                 key={sample.en}
                 type="button"
                 onClick={() => setQuestion(label)}
-                className="px-3 py-1.5 min-h-[36px] rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-blue-950/50 text-xs text-slate-700 dark:text-slate-300 transition-colors text-left"
+                className="px-3 py-1.5 min-h-[36px] rounded-lg bg-slate-100 dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-sky-950/50 text-xs text-slate-700 dark:text-slate-300 transition-colors text-left"
               >
                 {label.slice(0, 42)}...
               </button>
@@ -345,47 +444,17 @@ export const EducationPage: React.FC<EducationPageProps> = ({
           })}
         </div>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100 dark:border-slate-800">
-          <div className="flex items-center gap-3">
-            <label className="cursor-pointer inline-flex items-center gap-2 px-3.5 py-2 min-h-[44px] rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-              <ImagePlus className="w-4 h-4 text-blue-700 dark:text-blue-400" />
-              <span>{t('Upload Textbook/Note Photo (Optional)', 'খাতা/বইয়ের ছবি দিন (ঐচ্ছিক)')}</span>
-              <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
-            </label>
-
-            {imagePreview && (
-              <div className="flex items-center gap-2">
-                <img
-                  src={imagePreview}
-                  alt={t('Uploaded question', 'আপলোড করা প্রশ্ন')}
-                  className="w-10 h-10 rounded-lg object-cover border border-slate-200 dark:border-slate-700"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setImagePreview(null);
-                    setImageBase64(undefined);
-                    setImageMimeType(undefined);
-                  }}
-                  aria-label={t('Remove photo', 'ছবি সরান')}
-                  className="min-w-[36px] min-h-[36px] flex items-center justify-center rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40"
-                >
-                  <Trash2 className="w-4 h-4" />
-                </button>
-              </div>
-            )}
-          </div>
-
+        <div className="flex justify-end pt-2 border-t border-slate-100 dark:border-slate-800">
           <button
             type="submit"
             disabled={loading || !isOnline}
-            className="min-h-[44px] px-6 rounded-xl bg-blue-700 hover:bg-blue-800 disabled:opacity-60 text-white text-sm font-semibold inline-flex items-center gap-2 transition-colors"
+            className="min-h-[44px] px-6 rounded-xl bg-sky-600 hover:bg-sky-700 disabled:opacity-60 text-white text-sm font-semibold inline-flex items-center gap-2 transition-colors"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             <span>
               {loading
-                ? t('Solving...', 'সমাধান তৈরি হচ্ছে...')
-                : t('Solve Step by Step', 'ধাপে ধাপে সমাধান করুন')}
+                ? t('Solving...', 'উত্তর তৈরি হচ্ছে...')
+                : t('Get Answer', 'উত্তর দেখুন')}
             </span>
           </button>
         </div>

@@ -2,6 +2,8 @@ import React, { useRef } from 'react';
 import {
   AlertTriangle,
   Bell,
+  BookOpen,
+  BookOpenCheck,
   Briefcase,
   Cpu,
   Crown,
@@ -14,6 +16,7 @@ import {
   LayoutGrid,
   Megaphone,
   MessageSquareText,
+  MoonStar,
   ShieldCheck,
   User,
   WifiOff,
@@ -73,9 +76,37 @@ export const SIDEBAR_NAV_ITEMS: {
   { id: 'tools', labelEn: 'All AI Tools', labelBn: 'সকল এআই টুলস', icon: LayoutGrid, group: 'core' },
   {
     id: 'education',
-    labelEn: 'Education AI',
-    labelBn: 'শিক্ষা AI',
+    labelEn: 'School (SSC/HSC)',
+    labelBn: 'স্কুল (SSC / HSC)',
     icon: GraduationCap,
+    group: 'tools',
+  },
+  {
+    id: 'study_tools',
+    labelEn: 'Study Tools',
+    labelBn: 'পড়াশোনা টুলস',
+    icon: BookOpenCheck,
+    group: 'tools',
+  },
+  {
+    id: 'qawmi',
+    labelEn: 'Qawmi Madrasah',
+    labelBn: 'কওমি মাদ্রাসা',
+    icon: BookOpen,
+    group: 'tools',
+  },
+  {
+    id: 'alia',
+    labelEn: 'Alia Madrasah',
+    labelBn: 'আলিয়া মাদ্রাসা',
+    icon: BookOpen,
+    group: 'tools',
+  },
+  {
+    id: 'islamic',
+    labelEn: 'Islam & Hafez',
+    labelBn: 'ইসলাম ও হাফেজ',
+    icon: MoonStar,
     group: 'tools',
   },
   { id: 'jobs', labelEn: 'Global Jobs', labelBn: 'বিদেশে চাকরি', icon: Briefcase, group: 'tools' },
@@ -503,7 +534,9 @@ export const NavigationShell: React.FC<NavigationShellProps> = ({
           const active =
             currentPage === tab.id ||
             (tab.id === 'tools' &&
-              ['education', 'jobs', 'health', 'social', 'video', 'photo'].includes(currentPage)) ||
+              ['education', 'study_tools', 'qawmi', 'alia', 'islamic', 'jobs', 'health', 'social', 'video', 'photo'].includes(
+                currentPage
+              )) ||
             (tab.id === 'profile' && ['subscription', 'admin'].includes(currentPage));
 
           return (

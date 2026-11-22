@@ -9,9 +9,12 @@ import { EducationPage } from './pages/EducationPage';
 import { HealthPage } from './pages/HealthPage';
 import { HistoryView, ProfileView } from './pages/HistoryAndProfilePage';
 import { AllToolsView, HomeView } from './pages/HomeAndToolsPage';
+import { IslamicHafezPage } from './pages/IslamicHafezPage';
 import { JobsPage } from './pages/JobsPage';
+import { MadrasahPage } from './pages/MadrasahPage';
 import { PhotoEditorPage } from './pages/PhotoEditorPage';
 import { SocialPage } from './pages/SocialPage';
+import { StudyToolsPage } from './pages/StudyToolsPage';
 import { SubscriptionPage } from './pages/SubscriptionPage';
 import { VideoStudioPage } from './pages/VideoStudioPage';
 import { normalizeLanguageCode } from './constants/languages';
@@ -331,6 +334,56 @@ function AppInner({
             educationHistory={educationHistory}
             initialQuestion={pendingEducationQuestion}
             onClearInitialQuestion={() => setPendingEducationQuestion('')}
+            responseLanguage={responseLanguage}
+            activeModel={appState.integrations.geminiModel}
+            availableModels={appState.integrations.availableModels}
+            onSwitchModel={handleSwitchModel}
+            onBusyChange={handleBusyChange}
+            onResultSuccess={(item, quota) => handleResultSuccess(item, quota)}
+          />
+        )}
+
+        {currentPage === 'study_tools' && (
+          <StudyToolsPage
+            isOnline={isOnline}
+            responseLanguage={responseLanguage}
+            activeModel={appState.integrations.geminiModel}
+            availableModels={appState.integrations.availableModels}
+            onSwitchModel={handleSwitchModel}
+            onBusyChange={handleBusyChange}
+            onResultSuccess={(item, quota) => handleResultSuccess(item, quota)}
+          />
+        )}
+
+        {currentPage === 'qawmi' && (
+          <MadrasahPage
+            board="qawmi"
+            isOnline={isOnline}
+            responseLanguage={responseLanguage}
+            activeModel={appState.integrations.geminiModel}
+            availableModels={appState.integrations.availableModels}
+            onSwitchModel={handleSwitchModel}
+            onBusyChange={handleBusyChange}
+            onResultSuccess={(item, quota) => handleResultSuccess(item, quota)}
+          />
+        )}
+
+        {currentPage === 'alia' && (
+          <MadrasahPage
+            board="alia"
+            isOnline={isOnline}
+            responseLanguage={responseLanguage}
+            activeModel={appState.integrations.geminiModel}
+            availableModels={appState.integrations.availableModels}
+            onSwitchModel={handleSwitchModel}
+            onBusyChange={handleBusyChange}
+            onResultSuccess={(item, quota) => handleResultSuccess(item, quota)}
+          />
+        )}
+
+        {currentPage === 'islamic' && (
+          <IslamicHafezPage
+            isOnline={isOnline}
             responseLanguage={responseLanguage}
             activeModel={appState.integrations.geminiModel}
             availableModels={appState.integrations.availableModels}
