@@ -21,6 +21,17 @@
   .font-mono, .tabular-nums {
     font-variant-numeric: tabular-nums;
   }
+
+  .font-quran {
+    font-family: "Amiri", "Noto Naskh Arabic", "Scheherazade New", serif;
+    font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
+    font-variant-ligatures: normal common-ligatures contextual;
+    letter-spacing: 0 !important;
+    word-spacing: 0.08em;
+    word-break: keep-all;
+    overflow-wrap: break-word;
+    text-rendering: optimizeLegibility;
+  }
 }
 
 /* Custom subtle scrollbars */

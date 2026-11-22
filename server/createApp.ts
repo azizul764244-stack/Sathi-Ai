@@ -69,6 +69,13 @@ import {
   verifyGeminiConnection,
 } from './gemini.js';
 import { normalizeLanguageCode } from '../src/constants/languages.js';
+import {
+  getGlobalAyahNumber,
+  OFFLINE_FALLBACK_SURAHS,
+  QURAN_SURAHS,
+  type QuranAyahItem,
+} from '../src/data/quranSurahs.js';
+import { transliterateQuranToBengali } from '../src/utils/quranTransliteration.js';
 import type {
   GoogleAuthUser,
   PaymentMethod,
@@ -1844,6 +1851,539 @@ app.post('/api/ai/tts', async (req, res) => {
     });
     sendAiError(res, err);
   }
+});
+
+const quranSurahCache = new Map<
+  number,
+  { surah: (typeof QURAN_SURAHS)[number]; ayahs: QuranAyahItem[] }
+>();
+
+const BISMILLAH_PREFIXES = [
+  'بِسْمِ ٱللَّهِ ٱلرَّحْمَٰنِ ٱلرَّحِيمِ ',
+  'بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ ',
+];
+
+function stripLeadingBismillah(surahNum: number, idx: number, text: string): string {
+  const clean = text.replace(/^\uFEFF/, '').trim();
+  if (surahNum === 1 || surahNum === 9 || idx !== 0) return clean;
+  for (const prefix of BISMILLAH_PREFIXES) {
+    if (clean.startsWith(prefix)) {
+      return clean.slice(prefix.length).trim();
+    }
+  }
+  return clean;
+}
+
+const quranAudioCache = new Map<string, Buffer>();
+
+async function loadQuranSurahData(
+  num: number
+): Promise<{ surah: (typeof QURAN_SURAHS)[number]; ayahs: QuranAyahItem[] }> {
+  const cached = quranSurahCache.get(num);
+  if (cached) return cached;
+
+  const surahMeta = QURAN_SURAHS.find((s) => s.number === num) ?? QURAN_SURAHS[0];
+
+  try {
+    const response = await fetch(
+      `https://api.alquran.cloud/v1/surah/${num}/editions/quran-simple-enhanced,bn.bengali,en.transliteration,ar.alafasy`,
+      { signal: AbortSignal.timeout(15000) }
+    );
+    if (!response.ok) {
+      throw new Error(`Quran API status ${response.status}`);
+    }
+    const payload = (await response.json()) as {
+      code?: number;
+      data?: Array<{
+        ayahs?: Array<{
+          number?: number;
+          numberInSurah?: number;
+          text?: string;
+        }>;
+      }>;
+    };
+
+    const arAyahs = payload?.data?.[0]?.ayahs ?? [];
+    const bnAyahs = payload?.data?.[1]?.ayahs ?? [];
+    const trAyahs = payload?.data?.[2]?.ayahs ?? [];
+    const auAyahs = payload?.data?.[3]?.ayahs ?? [];
+
+    if (arAyahs.length === 0) {
+      throw new Error('Empty ayah list from Quran API');
+    }
+
+    const curatedFallback = OFFLINE_FALLBACK_SURAHS[num];
+    const ayahs: QuranAyahItem[] = arAyahs.map((arItem, idx) => {
+      const numberInSurah = arItem.numberInSurah ?? idx + 1;
+      const globalNumber =
+        arItem.number ??
+        auAyahs[idx]?.number ??
+        getGlobalAyahNumber(num, numberInSurah);
+      const audioUrl = `/api/quran/audio/${num}/${numberInSurah}`;
+      const arabic = stripLeadingBismillah(num, idx, arItem.text ?? '');
+      const transliterationEn = (trAyahs[idx]?.text ?? '').trim();
+      const curatedAyah = curatedFallback?.find((f) => f.numberInSurah === numberInSurah);
+      const pronunciationBn =
+        curatedAyah?.pronunciationBn || transliterateQuranToBengali(transliterationEn);
+      const meaningBn = (bnAyahs[idx]?.text ?? curatedAyah?.meaningBn ?? '').trim();
+      return {
+        numberInSurah,
+        globalNumber,
+        audioUrl,
+        arabic,
+        transliterationEn,
+        pronunciationBn,
+        meaningBn,
+      };
+    });
+
+    const result = { surah: surahMeta, ayahs };
+    quranSurahCache.set(num, result);
+    return result;
+  } catch {
+    // Secondary CDN fallback covering all 114 Surahs (Arabic + Bengali translation + transliteration)
+    try {
+      const cdnRes = await fetch(
+        `https://cdn.jsdelivr.net/npm/quran-json@3.1.2/dist/chapters/bn/${num}.json`,
+        { signal: AbortSignal.timeout(12000) }
+      );
+      if (cdnRes.ok) {
+        const cdnData = (await cdnRes.json()) as {
+          verses?: Array<{
+            id?: number;
+            text?: string;
+            translation?: string;
+            transliteration?: string;
+          }>;
+        };
+        const verses = cdnData.verses ?? [];
+        if (verses.length > 0) {
+          const curatedFallback = OFFLINE_FALLBACK_SURAHS[num];
+          const ayahs: QuranAyahItem[] = verses.map((v, idx) => {
+            const numberInSurah = v.id ?? idx + 1;
+            const globalNumber = getGlobalAyahNumber(num, numberInSurah);
+            const curatedAyah = curatedFallback?.find((f) => f.numberInSurah === numberInSurah);
+            const transliterationEn = (v.transliteration ?? '').trim();
+            return {
+              numberInSurah,
+              globalNumber,
+              audioUrl: `/api/quran/audio/${num}/${numberInSurah}`,
+              arabic: stripLeadingBismillah(num, idx, v.text ?? ''),
+              transliterationEn,
+              pronunciationBn:
+                curatedAyah?.pronunciationBn || transliterateQuranToBengali(transliterationEn),
+              meaningBn: (v.translation ?? curatedAyah?.meaningBn ?? '').trim(),
+            };
+          });
+          const result = { surah: surahMeta, ayahs };
+          quranSurahCache.set(num, result);
+          return result;
+        }
+      }
+    } catch {
+      // continue to offline curated fallback
+    }
+
+    const fallbackAyahs = OFFLINE_FALLBACK_SURAHS[num];
+    if (fallbackAyahs) {
+      const enriched = fallbackAyahs.map((a) => {
+        const globalNumber = getGlobalAyahNumber(num, a.numberInSurah);
+        return {
+          ...a,
+          globalNumber,
+          audioUrl: `/api/quran/audio/${num}/${a.numberInSurah}`,
+        };
+      });
+      return { surah: surahMeta, ayahs: enriched };
+    }
+    throw new Error('এই মুহূর্তে সূরাটি লোড করা যায়নি। ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।');
+  }
+}
+
+app.get('/api/quran/surah/:number', async (req, res) => {
+  const num = Number(req.params.number);
+  if (!Number.isInteger(num) || num < 1 || num > 114) {
+    res.status(400).json({ error: 'সূরা নম্বর অবশ্যই ১ থেকে ১১৪-এর মধ্যে হতে হবে।' });
+    return;
+  }
+
+  try {
+    const result = await loadQuranSurahData(num);
+    res.json(result);
+  } catch (err) {
+    res.status(502).json({
+      error:
+        err instanceof Error
+          ? err.message
+          : 'এই মুহূর্তে সূরাটি লোড করা যায়নি। ইন্টারনেট সংযোগ পরীক্ষা করে আবার চেষ্টা করুন।',
+    });
+  }
+});
+
+function sendAudioBufferWithRange(
+  req: express.Request,
+  res: express.Response,
+  audioBuf: Buffer
+): void {
+  const totalLen = audioBuf.length;
+  const rangeHeader = req.headers.range;
+  res.setHeader('Content-Type', 'audio/mpeg');
+  res.setHeader('Accept-Ranges', 'bytes');
+  res.setHeader('Cache-Control', 'public, max-age=86400');
+
+  if (rangeHeader) {
+    const match = rangeHeader.match(/bytes=(\d+)-(\d*)/);
+    if (match) {
+      const start = Number(match[1]);
+      const end = match[2] ? Math.min(Number(match[2]), totalLen - 1) : totalLen - 1;
+      if (start <= end && start < totalLen) {
+        res.status(206);
+        res.setHeader('Content-Range', `bytes ${start}-${end}/${totalLen}`);
+        res.setHeader('Content-Length', String(end - start + 1));
+        res.end(audioBuf.subarray(start, end + 1));
+        return;
+      }
+    }
+  }
+
+  res.setHeader('Content-Length', String(totalLen));
+  res.end(audioBuf);
+}
+
+app.get('/api/quran/audio/:surah/:ayah', async (req, res) => {
+  const surahNum = Number(req.params.surah);
+  const ayahNum = Number(req.params.ayah);
+  const surahMeta = QURAN_SURAHS.find((s) => s.number === surahNum);
+  if (
+    !surahMeta ||
+    !Number.isInteger(ayahNum) ||
+    ayahNum < 1 ||
+    ayahNum > surahMeta.ayahCount
+  ) {
+    res.status(400).json({ error: 'সঠিক সূরা ও আয়াত নম্বর পাওয়া যায়নি।' });
+    return;
+  }
+
+  const cacheKey = `${surahNum}:${ayahNum}`;
+  let audioBuf = quranAudioCache.get(cacheKey);
+
+  if (!audioBuf) {
+    const pad3 = (n: number) => String(n).padStart(3, '0');
+    const primaryUrl = `https://everyayah.com/data/Alafasy_128kbps/${pad3(surahNum)}${pad3(ayahNum)}.mp3`;
+    const globalNum = getGlobalAyahNumber(surahNum, ayahNum);
+    const secondaryUrl = `https://cdn.islamic.network/quran/audio/128/ar.alafasy/${globalNum}.mp3`;
+
+    for (const candidateUrl of [primaryUrl, secondaryUrl]) {
+      try {
+        const upstream = await fetch(candidateUrl, { signal: AbortSignal.timeout(12000) });
+        const contentType = (upstream.headers.get('content-type') || '').toLowerCase();
+        if (
+          upstream.ok &&
+          (contentType.startsWith('audio/') ||
+            contentType.includes('octet-stream') ||
+            contentType === '')
+        ) {
+          const arrBuf = await upstream.arrayBuffer();
+          if (arrBuf.byteLength > 512) {
+            audioBuf = Buffer.from(arrBuf);
+            break;
+          }
+        }
+      } catch {
+        // try next source
+      }
+    }
+
+    if (!audioBuf) {
+      res.status(502).json({ error: 'এই আয়াতের নির্ভরযোগ্য তেলাওয়াত অডিও পাওয়া যায়নি।' });
+      return;
+    }
+
+    if (quranAudioCache.size > 150) {
+      const oldestKey = quranAudioCache.keys().next().value;
+      if (oldestKey) quranAudioCache.delete(oldestKey);
+    }
+    quranAudioCache.set(cacheKey, audioBuf);
+  }
+
+  sendAudioBufferWithRange(req, res, audioBuf);
+});
+
+const quranSurahAudioCache = new Map<number, Buffer>();
+const MAX_CACHED_SURAH_AUDIO_BYTES = 6 * 1024 * 1024;
+
+app.get('/api/quran/surah-audio/:surah', async (req, res) => {
+  const surahNum = Number(req.params.surah);
+  if (!Number.isInteger(surahNum) || surahNum < 1 || surahNum > 114) {
+    res.status(400).json({ error: 'সঠিক সূরা নম্বর পাওয়া যায়নি।' });
+    return;
+  }
+
+  const cached = quranSurahAudioCache.get(surahNum);
+  if (cached) {
+    sendAudioBufferWithRange(req, res, cached);
+    return;
+  }
+
+  const pad3 = (n: number) => String(n).padStart(3, '0');
+  const primaryUrl = `https://cdn.islamic.network/quran/audio-surah/128/ar.alafasy/${surahNum}.mp3`;
+  const secondaryUrl = `https://cdn.mp3quran.net/audio/mishary-alafasy/r1/${pad3(surahNum)}.mp3`;
+
+  const rangeHeader = typeof req.headers.range === 'string' ? req.headers.range : undefined;
+
+  for (const candidateUrl of [primaryUrl, secondaryUrl]) {
+    try {
+      const upstream = await fetch(candidateUrl, {
+        headers: rangeHeader ? { Range: rangeHeader } : undefined,
+        signal: AbortSignal.timeout(25000),
+      });
+      const contentType = (upstream.headers.get('content-type') || '').toLowerCase();
+      if (
+        !upstream.ok ||
+        (!contentType.startsWith('audio/') &&
+          !contentType.includes('octet-stream') &&
+          contentType !== '')
+      ) {
+        continue;
+      }
+
+      const contentLenHeader = Number(upstream.headers.get('content-length') || '0');
+
+      // Small/medium full Surahs (without Range request): buffer & cache for instant replay/range
+      if (
+        !rangeHeader &&
+        upstream.status === 200 &&
+        contentLenHeader > 512 &&
+        contentLenHeader <= MAX_CACHED_SURAH_AUDIO_BYTES
+      ) {
+        const buf = Buffer.from(await upstream.arrayBuffer());
+        if (quranSurahAudioCache.size > 15) {
+          const oldestKey = quranSurahAudioCache.keys().next().value;
+          if (oldestKey !== undefined) quranSurahAudioCache.delete(oldestKey);
+        }
+        quranSurahAudioCache.set(surahNum, buf);
+        sendAudioBufferWithRange(req, res, buf);
+        return;
+      }
+
+      // Stream directly for large Surahs or partial Range requests
+      res.status(upstream.status);
+      res.setHeader('Content-Type', 'audio/mpeg');
+      res.setHeader('Accept-Ranges', 'bytes');
+      res.setHeader('Cache-Control', 'public, max-age=86400');
+      const cr = upstream.headers.get('content-range');
+      if (cr) res.setHeader('Content-Range', cr);
+      const cl = upstream.headers.get('content-length');
+      if (cl) res.setHeader('Content-Length', cl);
+
+      if (!upstream.body) {
+        res.end();
+        return;
+      }
+
+      const reader = upstream.body.getReader();
+      req.on('close', () => {
+        void reader.cancel().catch(() => {});
+      });
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        if (value) res.write(Buffer.from(value));
+      }
+      res.end();
+      return;
+    } catch {
+      // try fallback CDN
+    }
+  }
+
+  if (!res.headersSent) {
+    res.status(502).json({ error: 'এই সূরার নির্ভরযোগ্য আরবি তিলাওয়াত অডিও পাওয়া যায়নি।' });
+  }
+});
+
+const quranBnTtsCache = new Map<string, Buffer>();
+
+function splitBengaliTtsChunks(text: string, maxLen = 175): string[] {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (!normalized) return [];
+  if (normalized.length <= maxLen) return [normalized];
+
+  const chunks: string[] = [];
+  let remaining = normalized;
+  while (remaining.length > maxLen) {
+    let splitIdx = -1;
+    for (const sep of ['।', '?', '!', ';', ',', '—', '-']) {
+      const idx = remaining.lastIndexOf(sep, maxLen);
+      if (idx > maxLen * 0.35 && idx > splitIdx) {
+        splitIdx = idx + 1;
+      }
+    }
+    if (splitIdx === -1) {
+      const spaceIdx = remaining.lastIndexOf(' ', maxLen);
+      splitIdx = spaceIdx > 20 ? spaceIdx : maxLen;
+    }
+    const piece = remaining.slice(0, splitIdx).trim();
+    if (piece) chunks.push(piece);
+    remaining = remaining.slice(splitIdx).trim();
+  }
+  if (remaining) chunks.push(remaining);
+  return chunks;
+}
+
+const quranBnSurahAudioCache = new Map<number, Buffer>();
+
+async function fetchBengaliTtsChunkBuffer(chunk: string): Promise<Buffer> {
+  const ttsUrl = `https://translate.googleapis.com/translate_tts?ie=UTF-8&tl=bn&client=tw-ob&ttsspeed=0.92&q=${encodeURIComponent(chunk)}`;
+  const upstream = await fetch(ttsUrl, {
+    headers: {
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    },
+    signal: AbortSignal.timeout(12000),
+  });
+  if (!upstream.ok) {
+    throw new Error(`Bengali TTS status ${upstream.status}`);
+  }
+  const buf = Buffer.from(await upstream.arrayBuffer());
+  if (buf.byteLength < 128) {
+    throw new Error('Empty Bengali TTS audio');
+  }
+  return buf;
+}
+
+app.get('/api/quran/bn-meaning-audio/:surah', async (req, res) => {
+  const surahNum = Number(req.params.surah);
+  if (!Number.isInteger(surahNum) || surahNum < 1 || surahNum > 114) {
+    res.status(400).json({ error: 'সঠিক সূরা নম্বর পাওয়া যায়নি।' });
+    return;
+  }
+
+  const cached = quranBnSurahAudioCache.get(surahNum);
+  if (cached) {
+    sendAudioBufferWithRange(req, res, cached);
+    return;
+  }
+
+  let closed = false;
+  req.on('close', () => {
+    closed = true;
+  });
+
+  try {
+    const surahData = await loadQuranSurahData(surahNum);
+    // Exact unmodified full Bengali translation of the entire Surah (zero words dropped/altered)
+    const fullMeaningText = surahData.ayahs
+      .map((a) => a.meaningBn.trim())
+      .filter(Boolean)
+      .join(' ');
+
+    if (!fullMeaningText) {
+      res.status(404).json({ error: 'এই সূরার বাংলা অর্থ পাওয়া যায়নি।' });
+      return;
+    }
+
+    const chunks = splitBengaliTtsChunks(fullMeaningText, 175);
+    const CONCURRENCY = 4;
+
+    // For Surahs up to ~45 TTS segments (~8000 chars), build complete MP3 buffer & cache for instant Range/Pause/Resume
+    if (chunks.length <= 45) {
+      const partBuffers: Buffer[] = new Array(chunks.length);
+      for (let start = 0; start < chunks.length; start += CONCURRENCY) {
+        if (closed) return;
+        const batch = chunks.slice(start, start + CONCURRENCY);
+        await Promise.all(
+          batch.map(async (chunk, offset) => {
+            partBuffers[start + offset] = await fetchBengaliTtsChunkBuffer(chunk);
+          })
+        );
+      }
+
+      const completeBuf = Buffer.concat(partBuffers);
+      if (quranBnSurahAudioCache.size > 30) {
+        const oldestKey = quranBnSurahAudioCache.keys().next().value;
+        if (oldestKey !== undefined) quranBnSurahAudioCache.delete(oldestKey);
+      }
+      quranBnSurahAudioCache.set(surahNum, completeBuf);
+      sendAudioBufferWithRange(req, res, completeBuf);
+      return;
+    }
+
+    // For very long Surahs (e.g. Al-Baqarah), stream all segments sequentially without dropping a single word
+    res.status(200);
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Cache-Control', 'public, max-age=86400');
+
+    for (let start = 0; start < chunks.length; start += CONCURRENCY) {
+      if (closed) break;
+      const batch = chunks.slice(start, start + CONCURRENCY);
+      const buffers = await Promise.all(batch.map((c) => fetchBengaliTtsChunkBuffer(c)));
+      for (const b of buffers) {
+        if (closed) break;
+        res.write(b);
+      }
+    }
+    res.end();
+  } catch {
+    if (!res.headersSent) {
+      res.status(502).json({ error: 'বাংলা অর্থের ভয়েস অডিও তৈরি করা যায়নি।' });
+    } else {
+      res.end();
+    }
+  }
+});
+
+async function handleBengaliTtsRequest(
+  rawText: string,
+  req: express.Request,
+  res: express.Response
+): Promise<void> {
+  const cleaned = rawText.replace(/\s+/g, ' ').trim();
+  if (!cleaned) {
+    res.status(400).json({ error: 'শোনার জন্য বাংলা টেক্সট পাওয়া যায়নি।' });
+    return;
+  }
+
+  let audioBuf = quranBnTtsCache.get(cleaned);
+  if (!audioBuf) {
+    try {
+      const chunks = splitBengaliTtsChunks(cleaned, 175);
+      const partBuffers: Buffer[] = new Array(chunks.length);
+      const CONCURRENCY = 4;
+
+      for (let start = 0; start < chunks.length; start += CONCURRENCY) {
+        const batch = chunks.slice(start, start + CONCURRENCY);
+        await Promise.all(
+          batch.map(async (chunk, offset) => {
+            partBuffers[start + offset] = await fetchBengaliTtsChunkBuffer(chunk);
+          })
+        );
+      }
+
+      audioBuf = Buffer.concat(partBuffers);
+      if (quranBnTtsCache.size > 120) {
+        const oldestKey = quranBnTtsCache.keys().next().value;
+        if (oldestKey) quranBnTtsCache.delete(oldestKey);
+      }
+      quranBnTtsCache.set(cleaned, audioBuf);
+    } catch {
+      res.status(502).json({ error: 'বাংলা ভয়েস অডিও তৈরি করা যায়নি।' });
+      return;
+    }
+  }
+
+  sendAudioBufferWithRange(req, res, audioBuf);
+}
+
+app.get('/api/quran/tts-bn', async (req, res) => {
+  const rawText = typeof req.query.text === 'string' ? req.query.text : '';
+  await handleBengaliTtsRequest(rawText, req, res);
+});
+
+app.post('/api/quran/tts-bn', async (req, res) => {
+  const rawText = typeof req.body?.text === 'string' ? req.body.text : '';
+  await handleBengaliTtsRequest(rawText, req, res);
 });
 
   return app;

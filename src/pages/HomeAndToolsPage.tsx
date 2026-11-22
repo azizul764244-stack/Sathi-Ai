@@ -143,6 +143,21 @@ export const TOOL_DIRECTORY: ToolDirectoryItem[] = [
     noteBn: 'তাফসীর · হাদিস · নামাজ',
   },
   {
+    id: 'quran',
+    page: 'quran',
+    titleEn: 'Quran Sharif (114 Surahs)',
+    titleBn: 'কুরআন শরীফ',
+    subtitleEn: 'All 114 Surahs with Arabic, Bengali pronunciation, Bengali meaning, copy & save',
+    subtitleBn: '১১৪টি সূরা · আরবি আয়াত, বাংলা উচ্চারণ, বাংলা অর্থ · কপি ও সেভ',
+    categoryKey: 'edu_career',
+    categoryEn: 'Education & Career',
+    categoryBn: 'শিক্ষা ও ক্যারিয়ার',
+    icon: BookOpen,
+    accentClass: 'bg-green-50 text-green-700 dark:bg-green-950/70 dark:text-green-300',
+    noteEn: '114 Surahs',
+    noteBn: '১১৪টি সূরা',
+  },
+  {
     id: 'photo',
     page: 'photo',
     featureKey: 'imageGenerationEnabled',
@@ -240,6 +255,7 @@ const PRIMARY_HOME_IDS = new Set([
   'qawmi',
   'alia',
   'islamic',
+  'quran',
 ]);
 
 export const HomeView: React.FC<HomeViewProps> = ({
@@ -272,9 +288,18 @@ export const HomeView: React.FC<HomeViewProps> = ({
     icon: React.FC<{ className?: string }>;
   }[] = [
     {
+      id: 'quran',
+      page: 'quran',
+      title: '১. কুরআন শরীফ',
+      subtitle: '১১৪টি সূরা, আরবি আয়াত, বাংলা উচ্চারণ, বাংলা অর্থ · কপি ও সেভ',
+      gradient: 'bg-gradient-to-r from-green-600 to-emerald-700 text-white',
+      arrowClass: 'text-green-100',
+      icon: BookOpen,
+    },
+    {
       id: 'assistant',
       page: 'assistant',
-      title: '১. এআই চ্যাট সহকারী',
+      title: '২. এআই চ্যাট সহকারী',
       subtitle: 'গল্প, কবিতা, CV, চাকরির প্রশ্নোত্তর, ভয়েস ও ছবি দিয়ে যেকোনো কথা বলুন',
       gradient: 'bg-gradient-to-r from-blue-700 to-blue-800 text-white',
       arrowClass: 'text-blue-200',
@@ -283,7 +308,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     {
       id: 'education',
       page: 'education',
-      title: '২. স্কুল',
+      title: '৩. স্কুল',
       subtitle: 'শুধু ক্লাস ৬ থেকে HSC',
       gradient: 'bg-gradient-to-r from-sky-500 to-blue-500 text-white',
       arrowClass: 'text-sky-100',
@@ -292,7 +317,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     {
       id: 'study_tools',
       page: 'study_tools',
-      title: '৩. পড়াশোনা টুলস',
+      title: '৪. পড়াশোনা টুলস',
       subtitle: 'ছবি তুলে অংক, SSC/HSC সাজেশন, মডেল টেস্ট, নোট মেকার + PDF, ভয়েস প্রশ্ন, সহজ বাংলা',
       gradient: 'bg-gradient-to-r from-purple-600 to-violet-700 text-white',
       arrowClass: 'text-purple-200',
@@ -301,7 +326,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     {
       id: 'qawmi',
       page: 'qawmi',
-      title: '৪. কওমি মাদ্রাসা',
+      title: '৫. কওমি মাদ্রাসা',
       subtitle: 'নূরানী থেকে দাওরায়ে হাদিস',
       gradient: 'bg-gradient-to-r from-emerald-600 to-green-700 text-white',
       arrowClass: 'text-emerald-200',
@@ -310,7 +335,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     {
       id: 'alia',
       page: 'alia',
-      title: '৫. আলিয়া মাদ্রাসা',
+      title: '৬. আলিয়া মাদ্রাসা',
       subtitle: 'ইবতেদায়ী থেকে কামিল',
       gradient: 'bg-gradient-to-r from-teal-500 to-cyan-600 text-white',
       arrowClass: 'text-teal-100',
@@ -319,7 +344,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
     {
       id: 'islamic',
       page: 'islamic',
-      title: '৬. ইসলাম ও হাফেজ',
+      title: '৭. ইসলাম ও হাফেজ',
       subtitle: 'হাফেজ ট্র্যাকার, কোরআন, হাদিস, দোয়া, নামাজের সময়',
       gradient: 'bg-gradient-to-r from-indigo-900 to-purple-950 text-white',
       arrowClass: 'text-indigo-200',

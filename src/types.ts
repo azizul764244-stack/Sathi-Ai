@@ -7,6 +7,7 @@ export type AppPage =
   | 'qawmi'
   | 'alia'
   | 'islamic'
+  | 'quran'
   | 'jobs'
   | 'health'
   | 'social'

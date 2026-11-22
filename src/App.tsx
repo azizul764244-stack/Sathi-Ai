@@ -13,6 +13,7 @@ import { IslamicHafezPage } from './pages/IslamicHafezPage';
 import { JobsPage } from './pages/JobsPage';
 import { MadrasahPage } from './pages/MadrasahPage';
 import { PhotoEditorPage } from './pages/PhotoEditorPage';
+import { QuranPage } from './pages/QuranPage';
 import { SocialPage } from './pages/SocialPage';
 import { StudyToolsPage } from './pages/StudyToolsPage';
 import { SubscriptionPage } from './pages/SubscriptionPage';
@@ -392,6 +393,8 @@ function AppInner({
             onResultSuccess={(item, quota) => handleResultSuccess(item, quota)}
           />
         )}
+
+        {currentPage === 'quran' && <QuranPage />}
 
         {currentPage === 'jobs' && (
           <JobsPage

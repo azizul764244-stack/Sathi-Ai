@@ -109,6 +109,13 @@ export const SIDEBAR_NAV_ITEMS: {
     icon: MoonStar,
     group: 'tools',
   },
+  {
+    id: 'quran',
+    labelEn: 'Quran Sharif',
+    labelBn: 'কুরআন শরীফ',
+    icon: BookOpen,
+    group: 'tools',
+  },
   { id: 'jobs', labelEn: 'Global Jobs', labelBn: 'বিদেশে চাকরি', icon: Briefcase, group: 'tools' },
   {
     id: 'health',
@@ -534,7 +541,7 @@ export const NavigationShell: React.FC<NavigationShellProps> = ({
           const active =
             currentPage === tab.id ||
             (tab.id === 'tools' &&
-              ['education', 'study_tools', 'qawmi', 'alia', 'islamic', 'jobs', 'health', 'social', 'video', 'photo'].includes(
+              ['education', 'study_tools', 'qawmi', 'alia', 'islamic', 'quran', 'jobs', 'health', 'social', 'video', 'photo'].includes(
                 currentPage
               )) ||
             (tab.id === 'profile' && ['subscription', 'admin'].includes(currentPage));
